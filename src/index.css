@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Geist", "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Peaceful Retail Palette */
+  --color-surface: #f8faf8;
+  --color-surface-dim: #d8dad9;
+  --color-surface-bright: #f8faf8;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f4f2;
+  --color-surface-container: #eceeec;
+  --color-surface-container-high: #e6e9e7;
+  --color-surface-container-highest: #e1e3e1;
+  --color-on-surface: #191c1b;
+  --color-on-surface-variant: #434842;
+  --color-inverse-surface: #2e3130;
+  --color-inverse-on-surface: #eff1ef;
+  --color-outline: #737971;
+  --color-outline-variant: #c3c8bf;
+  --color-surface-tint: #4a654d;
+  
+  --color-primary: #47614a;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #5f7a61;
+  --color-on-primary-container: #efffec;
+  --color-inverse-primary: #b1ceb1;
+  
+  --color-secondary: #59605a;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #dbe2da;
+  --color-on-secondary-container: #5d645e;
+  
+  --color-tertiary: #505b6f;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #697488;
+  --color-on-tertiary-container: #fbfaff;
+  
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  
+  --color-background: #f8faf8;
+  --color-on-background: #191c1b;
+  --color-surface-variant: #e1e3e1;
+
+  /* Custom helper variables for Peaceful Retail design system */
+  --color-sage-dark: #445946;
+  --color-sage-light: #A3B18A;
+  --color-warm-sand: #F0EAD6;
+  --color-slate-gray: #2D3748;
+  --color-success-mint: #82C91E;
+  --color-warning-amber: #F59E0B;
+  --color-critical-action: #2D3748;
+}
+
+/* Custom general baseline visual styles for low cognitive load and gentle UI shadow depth */
+body {
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  font-family: var(--font-sans);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Smooth transit state and micro-interactions */
+button, input, select, textarea {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Ambient shadow Level 2 for active or floating containers */
+.shadow-ambient {
+  box-shadow: 0 12px 24px -4px rgba(74, 85, 104, 0.08);
+}
