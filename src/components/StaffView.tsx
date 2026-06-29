@@ -27,10 +27,10 @@ export const StaffView: React.FC = () => {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'owner' | 'manager' | 'cashier'>('cashier');
 
-  const handleInviteSubmit = (e: React.FormEvent) => {
+  const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteName || !inviteEmail) return;
-    addStaff(inviteName, inviteEmail, inviteRole);
+    await addStaff(inviteName, inviteEmail, inviteRole);
     setInviteName('');
     setInviteEmail('');
     setInviteRole('cashier');

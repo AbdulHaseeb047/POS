@@ -179,7 +179,7 @@ export const BillingView: React.FC = () => {
     setCheckoutModalOpen(true);
   };
 
-  const handleConfirmCheckout = () => {
+  const handleConfirmCheckout = async () => {
     const cashVal = parseFloat(cashReceived) || 0;
     
     // Gating checks
@@ -213,7 +213,7 @@ export const BillingView: React.FC = () => {
     }
 
     // Call checkout from global state
-    const sale = checkout(
+    const sale = await checkout(
       selectedCustomerId,
       cart,
       discount,
@@ -375,7 +375,7 @@ export const BillingView: React.FC = () => {
       </div>
 
       {/* RIGHT PANEL: CART & CHECKOUT PANEL */}
-      <div id="cart-panel-container" className="w-full md:w-[420px] bg-white border-l border-slate-200 flex flex-col justify-between shadow-2xl shrink-0 h-screen">
+      <div id="cart-panel-container" className="w-full md:w-[340px] xl:w-[360px] bg-white border-l border-slate-200 flex flex-col justify-between shadow-2xl shrink-0 h-screen">
         {/* Cart Header */}
         <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -439,49 +439,52 @@ export const BillingView: React.FC = () => {
             cart.map((item) => (
               <div 
                 key={item.product.id} 
-                className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200/60 rounded-xl"
+                className="p-3 bg-slate-50 border border-slate-200/60 rounded-xl space-y-2.5"
               >
-                <div className="flex-1 min-w-0 pr-3">
-                  <h5 className="text-xs font-bold text-slate-800 truncate">{item.product.name}</h5>
-                  <p className="text-[10px] text-slate-500 font-mono mt-0.5">
-                    ₨ {item.product.salePrice.toLocaleString()} / {item.product.unitType}
-                  </p>
+                {/* Line 1: Product Name & Delete */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <h5 className="text-xs font-bold text-slate-800 line-clamp-1 truncate" title={item.product.name}>
+                      {item.product.name}
+                    </h5>
+                    <p className="text-[10px] text-slate-500 font-mono mt-0.5">
+                      ₨ {item.product.salePrice.toLocaleString()} / {item.product.unitType}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => removeFromCart(item.product.id)}
+                    className="p-1 text-slate-450 hover:text-rose-500 rounded-lg hover:bg-rose-50 cursor-pointer shrink-0"
+                    title="Remove item"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
 
-                <div className="flex items-center gap-2.5">
+                {/* Line 2: Stepper & Price Total */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200/40">
                   {/* Quantity Stepper */}
-                  <div className="flex items-center bg-white border border-slate-200 rounded-lg shadow-inner overflow-hidden h-8">
+                  <div className="flex items-center bg-white border border-slate-200 rounded-lg shadow-inner overflow-hidden h-7">
                     <button
                       onClick={() => updateCartQuantity(item.product.id, item.product.unitType === 'piece' ? -1 : -0.5)}
-                      className="px-2 text-slate-500 hover:text-slate-800 hover:bg-slate-50 h-full"
+                      className="px-2 text-slate-500 hover:text-slate-850 hover:bg-slate-50 h-full cursor-pointer"
                     >
-                      <Minus className="h-3 w-3" />
+                      <Minus className="h-2.5 w-2.5" />
                     </button>
-                    <span className="w-10 text-center text-xs font-bold font-mono text-slate-800">
+                    <span className="w-8 text-center text-[11px] font-bold font-mono text-slate-800">
                       {item.quantity}
                     </span>
                     <button
                       onClick={() => updateCartQuantity(item.product.id, item.product.unitType === 'piece' ? 1 : 0.5)}
-                      className="px-2 text-slate-500 hover:text-slate-850 hover:bg-slate-50 h-full"
+                      className="px-2 text-slate-500 hover:text-slate-850 hover:bg-slate-50 h-full cursor-pointer"
                     >
-                      <Plus className="h-3 w-3" />
+                      <Plus className="h-2.5 w-2.5" />
                     </button>
                   </div>
 
-                  {/* Pricing */}
-                  <div className="w-20 text-right">
-                    <p className="text-xs font-extrabold text-slate-900 font-mono">
-                      ₨ {(item.product.salePrice * item.quantity).toLocaleString()}
-                    </p>
-                  </div>
-
-                  {/* Remove Button */}
-                  <button 
-                    onClick={() => removeFromCart(item.product.id)}
-                    className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-rose-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {/* Pricing Total */}
+                  <p className="text-xs font-black text-slate-900 font-mono">
+                    ₨ {(item.product.salePrice * item.quantity).toLocaleString()}
+                  </p>
                 </div>
               </div>
             ))

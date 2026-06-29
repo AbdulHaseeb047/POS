@@ -38,9 +38,9 @@ export const SettingsView: React.FC = () => {
   
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  const handleSaveSettingsSubmit = (e: React.FormEvent) => {
+  const handleSaveSettingsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateSettings({
+    await updateSettings({
       businessName,
       address,
       phone,

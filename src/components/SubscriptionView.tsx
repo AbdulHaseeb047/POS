@@ -38,10 +38,10 @@ export const SubscriptionView: React.FC = () => {
 
   const trialDays = getTrialDaysLeft();
 
-  const handleSelectPlan = (plan: SubscriptionPlan) => {
+  const handleSelectPlan = async (plan: SubscriptionPlan) => {
     const confirm = window.confirm(`Would you like to switch your active subscription plan to the "${plan}" tier for ${PLAN_FEATURES[plan].price} / month? This will apply to your active business profile immediately.`);
     if (confirm) {
-      changePlan(plan);
+      await changePlan(plan);
     }
   };
 
@@ -93,8 +93,8 @@ export const SubscriptionView: React.FC = () => {
 
           {/* Simulate reset trial */}
           <button
-            onClick={() => {
-              resetTrial();
+            onClick={async () => {
+              await resetTrial();
               alert("Sandbox Notice: 7-Day trial period has been reset successfully! You can now test Starter-tier gating limitations.");
             }}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs rounded-xl flex items-center justify-center border border-slate-700 hover:text-white"

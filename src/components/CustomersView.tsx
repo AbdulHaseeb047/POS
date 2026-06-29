@@ -103,7 +103,7 @@ export const CustomersView: React.FC = () => {
     setAddModalOpen(true);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName || !formPhone) return;
 
@@ -115,24 +115,24 @@ export const CustomersView: React.FC = () => {
     };
 
     if (editingCustomer) {
-      updateCustomer(editingCustomer.id, data);
+      await updateCustomer(editingCustomer.id, data);
       // Synchronize selection view if editing active customer
       if (selectedCustomer && selectedCustomer.id === editingCustomer.id) {
         setSelectedCustomer({ ...selectedCustomer, ...data });
       }
     } else {
-      addCustomer(data);
+      await addCustomer(data);
     }
     setAddModalOpen(false);
   };
 
-  const handlePaymentSubmit = (e: React.FormEvent) => {
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustomer || !paymentAmount) return;
     
     const amt = parseFloat(paymentAmount) || 0;
     if (amt > 0) {
-      receivePayment(selectedCustomer.id, amt, paymentRef);
+      await receivePayment(selectedCustomer.id, amt, paymentRef);
       
       // Update dynamic selection visual outstanding values
       const updatedOutstanding = Math.max(0, selectedCustomer.outstandingBalance - amt);

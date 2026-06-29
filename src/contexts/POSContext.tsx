@@ -30,17 +30,18 @@ interface POSContextType {
   setActiveTab: (tab: string) => void;
   syncStatus: 'synced' | 'syncing' | 'offline';
   triggerSync: () => void;
+  isLoading: boolean;
   
   // Product actions
-  addProduct: (product: Omit<Product, 'id'>) => void;
-  updateProduct: (id: string, updates: Partial<Product>) => void;
-  deleteProduct: (id: string) => void;
-  adjustStock: (productId: string, amount: number, reason: string) => void;
+  addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
+  updateProduct: (id: string, updates: Partial<Product>) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  adjustStock: (productId: string, amount: number, reason: string) => Promise<void>;
   
   // Customer actions
-  addCustomer: (customer: Omit<Customer, 'id' | 'outstandingBalance'>) => void;
-  updateCustomer: (id: string, updates: Partial<Customer>) => void;
-  receivePayment: (customerId: string, amount: number, reference: string) => void;
+  addCustomer: (customer: Omit<Customer, 'id' | 'outstandingBalance'>) => Promise<void>;
+  updateCustomer: (id: string, updates: Partial<Customer>) => Promise<void>;
+  receivePayment: (customerId: string, amount: number, reference: string) => Promise<void>;
   
   // Billing actions
   checkout: (
@@ -49,314 +50,22 @@ interface POSContextType {
     discount: number,
     amountPaid: number,
     paymentMethod: PaymentMethod
-  ) => Sale | null;
+  ) => Promise<Sale | null>;
   
   // Staff actions
-  addStaff: (name: string, email: string, role: 'owner' | 'manager' | 'cashier') => void;
+  addStaff: (name: string, email: string, role: 'owner' | 'manager' | 'cashier') => Promise<void>;
   setCurrentUser: (user: StaffUser) => void;
   
   // Subscription actions
-  changePlan: (plan: 'Starter' | 'Standard' | 'Pro' | 'Enterprise') => void;
-  resetTrial: () => void;
+  changePlan: (plan: 'Starter' | 'Standard' | 'Pro' | 'Enterprise') => Promise<void>;
+  resetTrial: () => Promise<void>;
   
   // Settings actions
-  updateSettings: (updates: Partial<BusinessSettings>) => void;
+  updateSettings: (updates: Partial<BusinessSettings>) => Promise<void>;
 }
 
 const POSContext = createContext<POSContextType | undefined>(undefined);
 
-// Seeds for product catalog
-const INITIAL_PRODUCTS: Product[] = [
-  {
-    id: 'prod-1',
-    name: 'Tapal Danedar Tea 950g',
-    sku: 'TAP-DAN-950',
-    barcode: '8964000123456',
-    category: 'Groceries',
-    unitType: 'piece',
-    costPrice: 1100,
-    salePrice: 1350,
-    stockQuantity: 45,
-    lowStockThreshold: 10,
-    isQuickSelect: true
-  },
-  {
-    id: 'prod-2',
-    name: 'Shan Biryani Masala 50g',
-    sku: 'SHN-BRY-050',
-    barcode: '8964000123412',
-    category: 'Spices',
-    unitType: 'piece',
-    costPrice: 90,
-    salePrice: 120,
-    stockQuantity: 120,
-    lowStockThreshold: 15,
-    isQuickSelect: true
-  },
-  {
-    id: 'prod-3',
-    name: 'Habib Cooking Oil 5L',
-    sku: 'HAB-OIL-05L',
-    barcode: '8964000123511',
-    category: 'Cooking Essentials',
-    unitType: 'piece',
-    costPrice: 2450,
-    salePrice: 2750,
-    stockQuantity: 18,
-    lowStockThreshold: 5,
-    expiryDate: '2027-04-12',
-    isQuickSelect: true
-  },
-  {
-    id: 'prod-4',
-    name: 'National Chilli Garlic Sauce 500g',
-    sku: 'NAT-CGS-500',
-    barcode: '8964000123610',
-    category: 'Sauces',
-    unitType: 'piece',
-    costPrice: 310,
-    salePrice: 380,
-    stockQuantity: 8,
-    lowStockThreshold: 10,
-    isQuickSelect: true
-  },
-  {
-    id: 'prod-5',
-    name: 'Dawn Bread Large',
-    sku: 'DWN-BRD-LRG',
-    barcode: '8964000123719',
-    category: 'Bakery',
-    unitType: 'piece',
-    costPrice: 160,
-    salePrice: 190,
-    stockQuantity: 25,
-    lowStockThreshold: 8,
-    expiryDate: '2026-07-04',
-    isQuickSelect: true
-  },
-  {
-    id: 'prod-6',
-    name: 'Knorr Noodles Chatpatta 1-Pack',
-    sku: 'KNR-NDL-CHT',
-    barcode: '8964000123818',
-    category: 'Snacks',
-    unitType: 'piece',
-    costPrice: 45,
-    salePrice: 60,
-    stockQuantity: 150,
-    lowStockThreshold: 20,
-    isQuickSelect: true
-  },
-  {
-    id: 'prod-7',
-    name: 'Olper\'s Milk 1L',
-    sku: 'OLP-MLK-01L',
-    barcode: '8964000123917',
-    category: 'Dairy',
-    unitType: 'piece',
-    costPrice: 240,
-    salePrice: 290,
-    stockQuantity: 60,
-    lowStockThreshold: 12,
-    isQuickSelect: true
-  },
-  {
-    id: 'prod-8',
-    name: 'Surf Excel Powder 1kg',
-    sku: 'SRF-EXC-01K',
-    barcode: '8964000124013',
-    category: 'Household',
-    unitType: 'piece',
-    costPrice: 520,
-    salePrice: 640,
-    stockQuantity: 30,
-    lowStockThreshold: 8,
-    isQuickSelect: true
-  },
-  {
-    id: 'prod-9',
-    name: 'Loose Basmati Rice (Premium)',
-    sku: 'RIC-BAS-LSE',
-    barcode: '0000000000009',
-    category: 'Groceries',
-    unitType: 'kg',
-    costPrice: 280,
-    salePrice: 350,
-    stockQuantity: 240,
-    lowStockThreshold: 50,
-    isQuickSelect: false
-  },
-  {
-    id: 'prod-10',
-    name: 'Mitchell\'s Mixed Fruit Jam 340g',
-    sku: 'MIT-JAM-340',
-    barcode: '8964000124112',
-    category: 'Bakery',
-    unitType: 'piece',
-    costPrice: 290,
-    salePrice: 360,
-    stockQuantity: 4,
-    lowStockThreshold: 6,
-    expiryDate: '2026-12-18',
-    isQuickSelect: false
-  }
-];
-
-// Seeds for customers list
-const INITIAL_CUSTOMERS: Customer[] = [
-  {
-    id: 'cust-1',
-    name: 'Mohammad Farooq',
-    phone: '0300-1234567',
-    address: 'Apartment B-12, Gulshan-e-Iqbal, Karachi',
-    creditLimit: 25000,
-    outstandingBalance: 12450
-  },
-  {
-    id: 'cust-2',
-    name: 'Ayesha Khan',
-    phone: '0321-7654321',
-    address: 'House 45-C, Lane 4, DHA Phase 6, Karachi',
-    creditLimit: 50000,
-    outstandingBalance: 0
-  },
-  {
-    id: 'cust-3',
-    name: 'Kamran Kirana Store',
-    phone: '0333-9876543',
-    address: 'Shop No. 4, Jodia Bazar, Karachi',
-    creditLimit: 150000,
-    outstandingBalance: 84300
-  },
-  {
-    id: 'cust-4',
-    name: 'Zahid Ahmed',
-    phone: '0312-4455667',
-    address: 'Flat 402, Block 13-D, Gulistan-e-Johar, Karachi',
-    creditLimit: 15000,
-    outstandingBalance: 1200
-  }
-];
-
-// Seeds for customer ledger history
-const INITIAL_LEDGER: CustomerLedgerEntry[] = [
-  {
-    id: 'led-1',
-    customerId: 'cust-1',
-    date: '2026-06-20T11:30:00Z',
-    type: 'credit_sale',
-    amount: 15450,
-    balanceAfter: 15450,
-    description: 'Sale invoice #INV-1001 (Udhaar purchase)'
-  },
-  {
-    id: 'led-2',
-    customerId: 'cust-1',
-    date: '2026-06-22T16:45:00Z',
-    type: 'payment',
-    amount: 3000,
-    balanceAfter: 12450,
-    description: 'Cash payment received - Farooq'
-  },
-  {
-    id: 'led-3',
-    customerId: 'cust-3',
-    date: '2026-06-15T10:00:00Z',
-    type: 'credit_sale',
-    amount: 114300,
-    balanceAfter: 114300,
-    description: 'Bulk order invoice #INV-1002'
-  },
-  {
-    id: 'led-4',
-    customerId: 'cust-3',
-    date: '2026-06-19T14:15:00Z',
-    type: 'payment',
-    amount: 30000,
-    balanceAfter: 84300,
-    description: 'Bank transfer received - Kamran Store'
-  },
-  {
-    id: 'led-5',
-    customerId: 'cust-4',
-    date: '2026-06-25T19:20:00Z',
-    type: 'credit_sale',
-    amount: 3200,
-    balanceAfter: 3200,
-    description: 'Sale invoice #INV-1003'
-  },
-  {
-    id: 'led-6',
-    customerId: 'cust-4',
-    date: '2026-06-27T11:10:00Z',
-    type: 'payment',
-    amount: 2000,
-    balanceAfter: 1200,
-    description: 'Cash payment received - Zahid'
-  }
-];
-
-// Seeds for previous sales
-const INITIAL_SALES: Sale[] = [
-  {
-    id: 'INV-1001',
-    date: '2026-06-20T11:30:00Z',
-    customerId: 'cust-1',
-    customerName: 'Mohammad Farooq',
-    items: [
-      { productId: 'prod-1', productName: 'Tapal Danedar Tea 950g', quantity: 2, unitType: 'piece', salePrice: 1350, total: 2700 },
-      { productId: 'prod-3', productName: 'Habib Cooking Oil 5L', quantity: 4, unitType: 'piece', salePrice: 2750, total: 11000 },
-      { productId: 'prod-8', productName: 'Surf Excel Powder 1kg', quantity: 2, unitType: 'piece', salePrice: 640, total: 1280 }
-    ],
-    subtotal: 14980,
-    discount: 500,
-    tax: 970, // ~6.5% standard tax simulation
-    total: 15450,
-    amountPaid: 0,
-    creditAmount: 15450,
-    paymentMethod: 'credit',
-    cashierName: 'Ammar (Cashier)'
-  },
-  {
-    id: 'INV-1004',
-    date: '2026-06-27T15:40:00Z',
-    customerId: 'walk-in',
-    customerName: 'Walk-in Customer',
-    items: [
-      { productId: 'prod-2', productName: 'Shan Biryani Masala 50g', quantity: 5, unitType: 'piece', salePrice: 120, total: 600 },
-      { productId: 'prod-6', productName: 'Knorr Noodles Chatpatta 1-Pack', quantity: 10, unitType: 'piece', salePrice: 60, total: 600 },
-      { productId: 'prod-7', productName: 'Olper\'s Milk 1L', quantity: 3, unitType: 'piece', salePrice: 290, total: 870 }
-    ],
-    subtotal: 2070,
-    discount: 0,
-    tax: 130,
-    total: 2200,
-    amountPaid: 2200,
-    creditAmount: 0,
-    paymentMethod: 'cash',
-    cashierName: 'Ammar (Cashier)'
-  },
-  {
-    id: 'INV-1005',
-    date: '2026-06-28T09:15:00Z',
-    customerId: 'walk-in',
-    customerName: 'Walk-in Customer',
-    items: [
-      { productId: 'prod-1', productName: 'Tapal Danedar Tea 950g', quantity: 1, unitType: 'piece', salePrice: 1350, total: 1350 },
-      { productId: 'prod-5', productName: 'Dawn Bread Large', quantity: 2, unitType: 'piece', salePrice: 190, total: 380 }
-    ],
-    subtotal: 1730,
-    discount: 50,
-    tax: 110,
-    total: 1790,
-    amountPaid: 1790,
-    creditAmount: 0,
-    paymentMethod: 'card',
-    cashierName: 'Zainab (Manager)'
-  }
-];
-
-// Staff users
 const INITIAL_STAFF: StaffUser[] = [
   { id: 'user-1', name: 'Abdul Haseeb', email: 'owner@zappos.pk', role: 'owner', dateAdded: '2026-06-01', status: 'active' },
   { id: 'user-2', name: 'Zainab Fatima', email: 'zainab@zappos.pk', role: 'manager', dateAdded: '2026-06-10', status: 'active' },
@@ -372,6 +81,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUser] = useState<StaffUser>(INITIAL_STAFF[0]);
   const [activeTab, setActiveTab] = useState<string>('billing');
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   
   const [settings, setSettings] = useState<BusinessSettings>({
     businessName: "Karachi Super Mart",
@@ -379,7 +89,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     phone: "021-34567890",
     currency: "₨",
     taxEnabled: true,
-    taxRate: 6.5, // % GST standard retail Karachi
+    taxRate: 6.5,
     taxLabel: "SRB/GST",
     receiptHeader: "WELCOME TO KARACHI SUPER MART\nYour One-Stop Shop for Quality Groceries",
     receiptFooter: "Thank you for shopping with us!\nSoftware Powered by ZapPOS (0300-ZAPPOS)",
@@ -389,276 +99,441 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [subscription, setSubscription] = useState<Subscription>({
     plan: 'Standard',
     status: 'trial',
-    trialEndsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days left
+    trialEndsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
     currentPeriodEnd: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
     price: "₨ 5,000"
   });
 
-  // Load from localStorage on mount
+  // Fetch full data state from Backend on mount
   useEffect(() => {
-    const localProds = localStorage.getItem('zappos_products');
-    const localCusts = localStorage.getItem('zappos_customers');
-    const localLedger = localStorage.getItem('zappos_ledger');
-    const localSales = localStorage.getItem('zappos_sales');
-    const localStaff = localStorage.getItem('zappos_staff');
-    const localCurrentUser = localStorage.getItem('zappos_currentUser');
-    const localSettings = localStorage.getItem('zappos_settings');
-    const localSub = localStorage.getItem('zappos_subscription');
+    const fetchPOSData = async () => {
+      try {
+        setIsLoading(true);
+        setSyncStatus('syncing');
+        const res = await fetch('/api/pos-data');
+        if (!res.ok) throw new Error("API response error");
+        
+        const data = await res.json();
+        
+        setProducts(data.products || []);
+        setCustomers(data.customers || []);
+        setLedger(data.ledger || []);
+        setSales(data.sales || []);
+        setStaff(data.staff || INITIAL_STAFF);
+        setSettings(data.settings || DEFAULT_SETTINGS());
+        setSubscription(data.subscription || DEFAULT_SUBSCRIPTION());
+        
+        // Handle Current User
+        const localCurrentUser = localStorage.getItem('zappos_currentUser');
+        if (localCurrentUser) {
+          const parsed = JSON.parse(localCurrentUser);
+          // Verify user still exists
+          const exists = (data.staff || INITIAL_STAFF).find((s: StaffUser) => s.id === parsed.id);
+          if (exists) {
+            setCurrentUser(parsed);
+          } else {
+            setCurrentUser(data.staff?.[0] || INITIAL_STAFF[0]);
+          }
+        } else {
+          setCurrentUser(data.staff?.[0] || INITIAL_STAFF[0]);
+        }
+        
+        setSyncStatus('synced');
+      } catch (err) {
+        console.warn("Backend unavailable, loading local offline fallback data.", err);
+        setSyncStatus('offline');
+        
+        // Fallback offline loader from localStorage
+        const localProds = localStorage.getItem('zappos_products');
+        const localCusts = localStorage.getItem('zappos_customers');
+        const localLedger = localStorage.getItem('zappos_ledger');
+        const localSales = localStorage.getItem('zappos_sales');
+        const localStaff = localStorage.getItem('zappos_staff');
+        const localCurrentUser = localStorage.getItem('zappos_currentUser');
+        const localSettings = localStorage.getItem('zappos_settings');
+        const localSub = localStorage.getItem('zappos_subscription');
 
-    if (localProds) setProducts(JSON.parse(localProds));
-    else {
-      setProducts(INITIAL_PRODUCTS);
-      localStorage.setItem('zappos_products', JSON.stringify(INITIAL_PRODUCTS));
-    }
+        if (localProds) setProducts(JSON.parse(localProds));
+        if (localCusts) setCustomers(JSON.parse(localCusts));
+        if (localLedger) setLedger(JSON.parse(localLedger));
+        if (localSales) setSales(JSON.parse(localSales));
+        if (localStaff) setStaff(JSON.parse(localStaff));
+        if (localCurrentUser) setCurrentUser(JSON.parse(localCurrentUser));
+        if (localSettings) setSettings(JSON.parse(localSettings));
+        if (localSub) setSubscription(JSON.parse(localSub));
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    if (localCusts) setCustomers(JSON.parse(localCusts));
-    else {
-      setCustomers(INITIAL_CUSTOMERS);
-      localStorage.setItem('zappos_customers', JSON.stringify(INITIAL_CUSTOMERS));
-    }
-
-    if (localLedger) setLedger(JSON.parse(localLedger));
-    else {
-      setLedger(INITIAL_LEDGER);
-      localStorage.setItem('zappos_ledger', JSON.stringify(INITIAL_LEDGER));
-    }
-
-    if (localSales) setSales(JSON.parse(localSales));
-    else {
-      setSales(INITIAL_SALES);
-      localStorage.setItem('zappos_sales', JSON.stringify(INITIAL_SALES));
-    }
-
-    if (localStaff) setStaff(JSON.parse(localStaff));
-    else {
-      setStaff(INITIAL_STAFF);
-      localStorage.setItem('zappos_staff', JSON.stringify(INITIAL_STAFF));
-    }
-
-    if (localCurrentUser) {
-      setCurrentUser(JSON.parse(localCurrentUser));
-    } else {
-      setCurrentUser(INITIAL_STAFF[0]);
-    }
-
-    if (localSettings) setSettings(JSON.parse(localSettings));
-    if (localSub) setSubscription(JSON.parse(localSub));
+    fetchPOSData();
   }, []);
 
-  // Save changes helper
-  const saveToLocal = (key: string, value: any, setter: Function) => {
-    setter(value);
-    localStorage.setItem(key, JSON.stringify(value));
-    
-    // Simulate active Cloud syncing animation
+  const DEFAULT_SETTINGS = () => ({
+    businessName: "Karachi Super Mart",
+    address: "Block 4, Gulshan-e-Iqbal, Karachi",
+    phone: "021-34567890",
+    currency: "₨",
+    taxEnabled: true,
+    taxRate: 6.5,
+    taxLabel: "SRB/GST",
+    receiptHeader: "WELCOME TO KARACHI SUPER MART\nYour One-Stop Shop for Quality Groceries",
+    receiptFooter: "Thank you for shopping with us!\nSoftware Powered by ZapPOS (0300-ZAPPOS)",
+    lowStockAlertEnabled: true
+  });
+
+  const DEFAULT_SUBSCRIPTION = () => ({
+    plan: 'Standard' as const,
+    status: 'trial' as const,
+    trialEndsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    currentPeriodEnd: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    price: "₨ 5,000"
+  });
+
+  // Save changes helper with Cloud + local syncing
+  const syncWithCloud = async (action: () => Promise<any>, fallbackAction: () => void) => {
     setSyncStatus('syncing');
-    setTimeout(() => {
+    try {
+      await action();
       setSyncStatus('synced');
-    }, 800);
+    } catch (err) {
+      console.error("API update error, executing local action:", err);
+      fallbackAction();
+      setSyncStatus('offline');
+    }
   };
 
-  const triggerSync = () => {
+  const triggerSync = async () => {
     setSyncStatus('syncing');
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/pos-data');
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setProducts(data.products || []);
+      setCustomers(data.customers || []);
+      setLedger(data.ledger || []);
+      setSales(data.sales || []);
+      setStaff(data.staff || INITIAL_STAFF);
+      setSettings(data.settings || DEFAULT_SETTINGS());
+      setSubscription(data.subscription || DEFAULT_SUBSCRIPTION());
       setSyncStatus('synced');
-    }, 1500);
+    } catch (e) {
+      setSyncStatus('offline');
+    }
   };
 
   // Product Actions
-  const addProduct = (p: Omit<Product, 'id'>) => {
-    const newProduct: Product = {
-      ...p,
-      id: `prod-${Date.now()}`
-    };
-    const updated = [newProduct, ...products];
-    saveToLocal('zappos_products', updated, setProducts);
-  };
-
-  const updateProduct = (id: string, updates: Partial<Product>) => {
-    const updated = products.map(p => p.id === id ? { ...p, ...updates } : p);
-    saveToLocal('zappos_products', updated, setProducts);
-  };
-
-  const deleteProduct = (id: string) => {
-    const updated = products.filter(p => p.id !== id);
-    saveToLocal('zappos_products', updated, setProducts);
-  };
-
-  const adjustStock = (productId: string, amount: number, reason: string) => {
-    const updated = products.map(p => {
-      if (p.id === productId) {
-        return {
-          ...p,
-          stockQuantity: Math.max(0, p.stockQuantity + amount)
-        };
+  const addProduct = async (p: Omit<Product, 'id'>) => {
+    await syncWithCloud(
+      async () => {
+        const res = await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(p)
+        });
+        if (!res.ok) throw new Error();
+        const newProduct = await res.json();
+        setProducts(prev => [newProduct, ...prev]);
+      },
+      () => {
+        const newProduct: Product = { ...p, id: `prod-${Date.now()}` };
+        const updated = [newProduct, ...products];
+        setProducts(updated);
+        localStorage.setItem('zappos_products', JSON.stringify(updated));
       }
-      return p;
-    });
-    saveToLocal('zappos_products', updated, setProducts);
+    );
+  };
+
+  const updateProduct = async (id: string, updates: Partial<Product>) => {
+    await syncWithCloud(
+      async () => {
+        const res = await fetch(`/api/products/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates)
+        });
+        if (!res.ok) throw new Error();
+        const updatedProduct = await res.json();
+        setProducts(prev => prev.map(p => p.id === id ? updatedProduct : p));
+      },
+      () => {
+        const updated = products.map(p => p.id === id ? { ...p, ...updates } : p);
+        setProducts(updated);
+        localStorage.setItem('zappos_products', JSON.stringify(updated));
+      }
+    );
+  };
+
+  const deleteProduct = async (id: string) => {
+    await syncWithCloud(
+      async () => {
+        const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        setProducts(prev => prev.filter(p => p.id !== id));
+      },
+      () => {
+        const updated = products.filter(p => p.id !== id);
+        setProducts(updated);
+        localStorage.setItem('zappos_products', JSON.stringify(updated));
+      }
+    );
+  };
+
+  const adjustStock = async (productId: string, amount: number, reason: string) => {
+    await syncWithCloud(
+      async () => {
+        const res = await fetch('/api/products/adjust-stock', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId, amount, reason })
+        });
+        if (!res.ok) throw new Error();
+        const updatedProduct = await res.json();
+        setProducts(prev => prev.map(p => p.id === productId ? updatedProduct : p));
+      },
+      () => {
+        const updated = products.map(p => {
+          if (p.id === productId) {
+            return { ...p, stockQuantity: Math.max(0, p.stockQuantity + amount) };
+          }
+          return p;
+        });
+        setProducts(updated);
+        localStorage.setItem('zappos_products', JSON.stringify(updated));
+      }
+    );
   };
 
   // Customer Actions
-  const addCustomer = (c: Omit<Customer, 'id' | 'outstandingBalance'>) => {
-    const newCustomer: Customer = {
-      ...c,
-      id: `cust-${Date.now()}`,
-      outstandingBalance: 0
-    };
-    const updated = [newCustomer, ...customers];
-    saveToLocal('zappos_customers', updated, setCustomers);
-  };
-
-  const updateCustomer = (id: string, updates: Partial<Customer>) => {
-    const updated = customers.map(c => c.id === id ? { ...c, ...updates } : c);
-    saveToLocal('zappos_customers', updated, setCustomers);
-  };
-
-  const receivePayment = (customerId: string, amount: number, reference: string) => {
-    const customer = customers.find(c => c.id === customerId);
-    if (!customer) return;
-
-    const newBalance = Math.max(0, customer.outstandingBalance - amount);
-    
-    // Update Customer Balance
-    const updatedCusts = customers.map(c => 
-      c.id === customerId ? { ...c, outstandingBalance: newBalance } : c
+  const addCustomer = async (c: Omit<Customer, 'id' | 'outstandingBalance'>) => {
+    await syncWithCloud(
+      async () => {
+        const res = await fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(c)
+        });
+        if (!res.ok) throw new Error();
+        const newCustomer = await res.json();
+        setCustomers(prev => [newCustomer, ...prev]);
+      },
+      () => {
+        const newCustomer: Customer = { ...c, id: `cust-${Date.now()}`, outstandingBalance: 0 };
+        const updated = [newCustomer, ...customers];
+        setCustomers(updated);
+        localStorage.setItem('zappos_customers', JSON.stringify(updated));
+      }
     );
-    saveToLocal('zappos_customers', updatedCusts, setCustomers);
+  };
 
-    // Create Ledger Entry
-    const newLedgerEntry: CustomerLedgerEntry = {
-      id: `led-${Date.now()}`,
-      customerId,
-      date: new Date().toISOString(),
-      type: 'payment',
-      amount,
-      balanceAfter: newBalance,
-      description: `Payment received: ${reference}`
-    };
-    const updatedLedger = [newLedgerEntry, ...ledger];
-    saveToLocal('zappos_ledger', updatedLedger, setLedger);
+  const updateCustomer = async (id: string, updates: Partial<Customer>) => {
+    await syncWithCloud(
+      async () => {
+        const res = await fetch(`/api/customers/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates)
+        });
+        if (!res.ok) throw new Error();
+        const updatedCustomer = await res.json();
+        setCustomers(prev => prev.map(c => c.id === id ? updatedCustomer : c));
+      },
+      () => {
+        const updated = customers.map(c => c.id === id ? { ...c, ...updates } : c);
+        setCustomers(updated);
+        localStorage.setItem('zappos_customers', JSON.stringify(updated));
+      }
+    );
+  };
+
+  const receivePayment = async (customerId: string, amount: number, reference: string) => {
+    await syncWithCloud(
+      async () => {
+        const res = await fetch('/api/customers/receive-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customerId, amount, reference })
+        });
+        if (!res.ok) throw new Error();
+        const payload = await res.json();
+        setCustomers(prev => prev.map(c => c.id === customerId ? payload.customer : c));
+        setLedger(prev => [payload.ledgerEntry, ...prev]);
+      },
+      () => {
+        const customer = customers.find(c => c.id === customerId);
+        if (!customer) return;
+
+        const newBalance = Math.max(0, customer.outstandingBalance - amount);
+        const updatedCusts = customers.map(c => c.id === customerId ? { ...c, outstandingBalance: newBalance } : c);
+        setCustomers(updatedCusts);
+        localStorage.setItem('zappos_customers', JSON.stringify(updatedCusts));
+
+        const ledgerEntry: CustomerLedgerEntry = {
+          id: `led-${Date.now()}`,
+          customerId,
+          date: new Date().toISOString(),
+          type: 'payment',
+          amount,
+          balanceAfter: newBalance,
+          description: `Payment received: ${reference}`
+        };
+        const updatedLedger = [ledgerEntry, ...ledger];
+        setLedger(updatedLedger);
+        localStorage.setItem('zappos_ledger', JSON.stringify(updatedLedger));
+      }
+    );
   };
 
   // Billing & Checkout Actions
-  const checkout = (
+  const checkout = async (
     customerId: string,
     cartItems: { product: Product; quantity: number }[],
     discount: number,
     amountPaid: number,
     paymentMethod: PaymentMethod
-  ): Sale | null => {
+  ): Promise<Sale | null> => {
     if (cartItems.length === 0) return null;
 
-    // 1. Calculate totals
-    const subtotal = cartItems.reduce((acc, item) => acc + (item.product.salePrice * item.quantity), 0);
-    const tax = settings.taxEnabled ? Math.round((subtotal - discount) * (settings.taxRate / 100)) : 0;
-    const total = subtotal - discount + tax;
+    let createdSale: Sale | null = null;
 
-    // Double check Udhaar limits & update customer profile
-    let creditAmount = 0;
-    let customerName = "Walk-in Customer";
+    setSyncStatus('syncing');
+    try {
+      const res = await fetch('/api/sales/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId,
+          cartItems,
+          discount,
+          amountPaid,
+          paymentMethod,
+          cashierName: `${currentUser.name} (${currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)})`
+        })
+      });
 
-    if (customerId !== 'walk-in') {
-      const customer = customers.find(c => c.id === customerId);
-      if (customer) {
-        customerName = customer.name;
-        
-        if (paymentMethod === 'credit') {
-          creditAmount = total;
-        } else if (paymentMethod === 'split') {
-          creditAmount = Math.max(0, total - amountPaid);
-        }
+      if (!res.ok) throw new Error();
 
-        if (creditAmount > 0) {
-          const projectedBalance = customer.outstandingBalance + creditAmount;
-          // Check credit limit
-          if (projectedBalance > customer.creditLimit) {
-            // Warn, but for POS ease we'll block or allow with notification
+      const data = await res.json();
+      createdSale = data.sale;
+      setSales(data.sales || [createdSale, ...sales]);
+      setProducts(data.products || []);
+      setCustomers(data.customers || []);
+      setLedger(data.ledger || []);
+      setSyncStatus('synced');
+    } catch (err) {
+      console.warn("Backend checkout error, processing checkout purely locally:", err);
+      setSyncStatus('offline');
+
+      // Local Fallback Execution
+      const subtotal = cartItems.reduce((acc, item) => acc + (item.product.salePrice * item.quantity), 0);
+      const tax = settings.taxEnabled ? Math.round((subtotal - discount) * (settings.taxRate / 100)) : 0;
+      const total = subtotal - discount + tax;
+
+      let creditAmount = 0;
+      let customerName = "Walk-in Customer";
+
+      if (customerId !== 'walk-in') {
+        const customer = customers.find(c => c.id === customerId);
+        if (customer) {
+          customerName = customer.name;
+          if (paymentMethod === 'credit') {
+            creditAmount = total;
+          } else if (paymentMethod === 'split') {
+            creditAmount = Math.max(0, total - amountPaid);
           }
 
-          // Update Customer
-          const updatedCusts = customers.map(c => 
-            c.id === customerId ? { ...c, outstandingBalance: projectedBalance } : c
-          );
-          saveToLocal('zappos_customers', updatedCusts, setCustomers);
+          if (creditAmount > 0) {
+            const projectedBalance = customer.outstandingBalance + creditAmount;
+            const updatedCusts = customers.map(c => c.id === customerId ? { ...c, outstandingBalance: projectedBalance } : c);
+            setCustomers(updatedCusts);
+            localStorage.setItem('zappos_customers', JSON.stringify(updatedCusts));
 
-          // Add Ledger entry
-          const newLedgerEntry: CustomerLedgerEntry = {
-            id: `led-${Date.now()}`,
-            customerId,
-            date: new Date().toISOString(),
-            type: 'credit_sale',
-            amount: creditAmount,
-            balanceAfter: projectedBalance,
-            description: `Invoice #${sales.length + 1006} (Udhaar Credit Purchase)`
-          };
-          // Save ledger below
-          setLedger(prev => {
-            const up = [newLedgerEntry, ...prev];
-            localStorage.setItem('zappos_ledger', JSON.stringify(up));
-            return up;
-          });
+            const newLedgerEntry: CustomerLedgerEntry = {
+              id: `led-${Date.now()}`,
+              customerId,
+              date: new Date().toISOString(),
+              type: 'credit_sale',
+              amount: creditAmount,
+              balanceAfter: projectedBalance,
+              description: `Invoice #${sales.length + 1006} (Udhaar Credit Purchase)`
+            };
+            const updatedLedger = [newLedgerEntry, ...ledger];
+            setLedger(updatedLedger);
+            localStorage.setItem('zappos_ledger', JSON.stringify(updatedLedger));
+          }
         }
       }
+
+      const updatedProds = products.map(p => {
+        const cartItem = cartItems.find(item => item.product.id === p.id);
+        if (cartItem) {
+          return { ...p, stockQuantity: Math.max(0, p.stockQuantity - cartItem.quantity) };
+        }
+        return p;
+      });
+      setProducts(updatedProds);
+      localStorage.setItem('zappos_products', JSON.stringify(updatedProds));
+
+      const saleItems: SaleItem[] = cartItems.map(item => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        quantity: item.quantity,
+        unitType: item.product.unitType,
+        salePrice: item.product.salePrice,
+        total: item.product.salePrice * item.quantity
+      }));
+
+      createdSale = {
+        id: `INV-${sales.length + 1006}`,
+        date: new Date().toISOString(),
+        customerId,
+        customerName,
+        items: saleItems,
+        subtotal,
+        discount,
+        tax,
+        total,
+        amountPaid: paymentMethod === 'credit' ? 0 : (paymentMethod === 'split' ? amountPaid : total),
+        creditAmount,
+        paymentMethod,
+        cashierName: `${currentUser.name} (${currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)})`
+      };
+
+      const updatedSales = [createdSale, ...sales];
+      setSales(updatedSales);
+      localStorage.setItem('zappos_sales', JSON.stringify(updatedSales));
     }
 
-    // 2. Decrement stock quantities atomically
-    const updatedProds = products.map(p => {
-      const cartItem = cartItems.find(item => item.product.id === p.id);
-      if (cartItem) {
-        return {
-          ...p,
-          stockQuantity: Math.max(0, p.stockQuantity - cartItem.quantity)
-        };
-      }
-      return p;
-    });
-    saveToLocal('zappos_products', updatedProds, setProducts);
-
-    // 3. Register Sale record
-    const saleItems: SaleItem[] = cartItems.map(item => ({
-      productId: item.product.id,
-      productName: item.product.name,
-      quantity: item.quantity,
-      unitType: item.product.unitType,
-      salePrice: item.product.salePrice,
-      total: item.product.salePrice * item.quantity
-    }));
-
-    const newSale: Sale = {
-      id: `INV-${sales.length + 1006}`,
-      date: new Date().toISOString(),
-      customerId,
-      customerName,
-      items: saleItems,
-      subtotal,
-      discount,
-      tax,
-      total,
-      amountPaid: paymentMethod === 'credit' ? 0 : (paymentMethod === 'split' ? amountPaid : total),
-      creditAmount,
-      paymentMethod,
-      cashierName: `${currentUser.name} (${currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)})`
-    };
-
-    const updatedSales = [newSale, ...sales];
-    saveToLocal('zappos_sales', updatedSales, setSales);
-
-    return newSale;
+    return createdSale;
   };
 
-  // Staff User Actions
-  const addStaff = (name: string, email: string, role: 'owner' | 'manager' | 'cashier') => {
-    const newMember: StaffUser = {
-      id: `user-${Date.now()}`,
-      name,
-      email,
-      role,
-      dateAdded: new Date().toISOString().split('T')[0],
-      status: 'invited'
-    };
-    const updated = [...staff, newMember];
-    saveToLocal('zappos_staff', updated, setStaff);
+  // Staff Actions
+  const addStaff = async (name: string, email: string, role: 'owner' | 'manager' | 'cashier') => {
+    await syncWithCloud(
+      async () => {
+        const res = await fetch('/api/staff', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, role })
+        });
+        if (!res.ok) throw new Error();
+        const newMember = await res.json();
+        setStaff(prev => [...prev, newMember]);
+      },
+      () => {
+        const newMember: StaffUser = {
+          id: `user-${Date.now()}`,
+          name,
+          email,
+          role,
+          dateAdded: new Date().toISOString().split('T')[0],
+          status: 'invited'
+        };
+        const updated = [...staff, newMember];
+        setStaff(updated);
+        localStorage.setItem('zappos_staff', JSON.stringify(updated));
+      }
+    );
   };
 
   const handleSetCurrentUser = (user: StaffUser) => {
@@ -667,32 +542,73 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Subscription Actions
-  const changePlan = (plan: 'Starter' | 'Standard' | 'Pro' | 'Enterprise') => {
-    const updated: Subscription = {
-      plan,
-      status: 'active',
-      trialEndsAt: subscription.trialEndsAt,
-      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      price: PLAN_FEATURES[plan].price
-    };
-    saveToLocal('zappos_subscription', updated, setSubscription);
+  const changePlan = async (plan: 'Starter' | 'Standard' | 'Pro' | 'Enterprise') => {
+    await syncWithCloud(
+      async () => {
+        const res = await fetch('/api/subscription/change-plan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ plan })
+        });
+        if (!res.ok) throw new Error();
+        const sub = await res.json();
+        setSubscription(sub);
+      },
+      () => {
+        const updated: Subscription = {
+          plan,
+          status: 'active',
+          trialEndsAt: subscription.trialEndsAt,
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          price: PLAN_FEATURES[plan].price
+        };
+        setSubscription(updated);
+        localStorage.setItem('zappos_subscription', JSON.stringify(updated));
+      }
+    );
   };
 
-  const resetTrial = () => {
-    const updated: Subscription = {
-      plan: 'Starter',
-      status: 'trial',
-      trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      currentPeriodEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      price: "₨ 2,500"
-    };
-    saveToLocal('zappos_subscription', updated, setSubscription);
+  const resetTrial = async () => {
+    await syncWithCloud(
+      async () => {
+        const res = await fetch('/api/subscription/reset-trial', { method: 'POST' });
+        if (!res.ok) throw new Error();
+        const sub = await res.json();
+        setSubscription(sub);
+      },
+      () => {
+        const updated: Subscription = {
+          plan: 'Starter',
+          status: 'trial',
+          trialEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          currentPeriodEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          price: "₨ 2,500"
+        };
+        setSubscription(updated);
+        localStorage.setItem('zappos_subscription', JSON.stringify(updated));
+      }
+    );
   };
 
   // Settings Actions
-  const updateSettings = (updates: Partial<BusinessSettings>) => {
-    const updated = { ...settings, ...updates };
-    saveToLocal('zappos_settings', updated, setSettings);
+  const updateSettings = async (updates: Partial<BusinessSettings>) => {
+    await syncWithCloud(
+      async () => {
+        const res = await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates)
+        });
+        if (!res.ok) throw new Error();
+        const sett = await res.json();
+        setSettings(sett);
+      },
+      () => {
+        const updated = { ...settings, ...updates };
+        setSettings(updated);
+        localStorage.setItem('zappos_settings', JSON.stringify(updated));
+      }
+    );
   };
 
   return (
@@ -710,6 +626,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveTab,
         syncStatus,
         triggerSync,
+        isLoading,
         addProduct,
         updateProduct,
         deleteProduct,

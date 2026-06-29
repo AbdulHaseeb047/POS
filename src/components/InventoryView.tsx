@@ -140,7 +140,7 @@ export const InventoryView: React.FC = () => {
     setProductModalOpen(true);
   };
 
-  const handleProductSubmit = (e: React.FormEvent) => {
+  const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName || !formSku) return;
 
@@ -159,31 +159,31 @@ export const InventoryView: React.FC = () => {
     };
 
     if (editingProduct) {
-      updateProduct(editingProduct.id, data);
+      await updateProduct(editingProduct.id, data);
     } else {
-      addProduct(data);
+      await addProduct(data);
     }
     setProductModalOpen(false);
   };
 
-  const handleStockInSubmit = (e: React.FormEvent) => {
+  const handleStockInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProdForStockIn || !stockInAmount) return;
     const qtyToAdd = parseFloat(stockInAmount) || 0;
     if (qtyToAdd > 0) {
-      adjustStock(selectedProdForStockIn.id, qtyToAdd, `Purchase Restock batch - ${new Date().toLocaleDateString()}`);
+      await adjustStock(selectedProdForStockIn.id, qtyToAdd, `Purchase Restock batch - ${new Date().toLocaleDateString()}`);
     }
     setStockInAmount('');
     setSelectedProdForStockIn(null);
     setStockInModalOpen(false);
   };
 
-  const handleAdjustSubmit = (e: React.FormEvent) => {
+  const handleAdjustSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedProdForAdjust || !adjustAmount) return;
     const qtyToAdjust = parseFloat(adjustAmount) || 0;
     if (qtyToAdjust !== 0) {
-      adjustStock(selectedProdForAdjust.id, qtyToAdjust, adjustReason);
+      await adjustStock(selectedProdForAdjust.id, qtyToAdjust, adjustReason);
     }
     setAdjustAmount('');
     setAdjustReason('Inventory Count Recount');
@@ -191,10 +191,10 @@ export const InventoryView: React.FC = () => {
     setAdjustModalOpen(false);
   };
 
-  const handleDeleteClick = (id: string, name: string) => {
+  const handleDeleteClick = async (id: string, name: string) => {
     const confirm = window.confirm(`Are you absolutely sure you want to delete "${name}"? This operation cannot be undone.`);
     if (confirm) {
-      deleteProduct(id);
+      await deleteProduct(id);
     }
   };
 
