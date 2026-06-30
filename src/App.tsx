@@ -13,10 +13,11 @@ import { ReportsView } from './components/ReportsView';
 import { StaffView } from './components/StaffView';
 import { SubscriptionView } from './components/SubscriptionView';
 import { SettingsView } from './components/SettingsView';
+import { SaaSAdminView } from './components/SaaSAdminView';
 import { Lock } from 'lucide-react';
 
 const AppContent: React.FC = () => {
-  const { activeTab, currentUser, isLoading } = usePOS();
+  const { activeTab, currentUser, isLoading, clientAccount } = usePOS();
 
   // Role gating mapping
   const renderView = () => {
@@ -24,7 +25,21 @@ const AppContent: React.FC = () => {
       return <LoadingSkeleton />;
     }
 
+    // Check if the current workspace is suspended or expired
+    const isLocked = clientAccount && (clientAccount.status === 'suspended' || clientAccount.status === 'expired');
+
+    // If locked, restrict access to any view except the SaaS Owner console itself (so owners can reactivate)
+    if (isLocked && activeTab !== 'saas-admin') {
+      return <SubscriptionBlockedFallback />;
+    }
+
     switch (activeTab) {
+      case 'saas-admin':
+        if (currentUser.role !== 'owner') {
+          return <UnauthorizedFallback requiredRoles={['owner']} />;
+        }
+        return <SaaSAdminView />;
+
       case 'billing':
         return <BillingView />;
       
@@ -75,6 +90,47 @@ const AppContent: React.FC = () => {
     </div>
   );
 };
+
+const SubscriptionBlockedFallback: React.FC = () => {
+  const { clientAccount } = usePOS();
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-8 bg-slate-50 text-center select-none">
+      <div className="h-16 w-16 rounded-2xl bg-rose-50 border border-rose-150 text-rose-600 flex items-center justify-center shadow-xs mb-5 animate-bounce">
+        <Lock className="h-8 w-8" />
+      </div>
+      <h3 className="text-lg font-black text-slate-900 tracking-tight">Workspace Suspended / Subscription Expired</h3>
+      <p className="text-xs text-slate-500 mt-2 max-w-[480px] leading-relaxed">
+        Access to your ZapPOS retail store workspace <strong>{clientAccount?.businessName || 'Current Store'}</strong> has been temporarily frozen due to an unpaid balance, expired license, or custom owner suspension.
+      </p>
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 mt-6 max-w-sm w-full text-left space-y-2 shadow-xs">
+        <div className="flex justify-between text-xs border-b border-slate-100 pb-2">
+          <span className="text-slate-400">Workspace Tenant ID:</span>
+          <span className="font-mono font-bold text-slate-700">{clientAccount?.id}</span>
+        </div>
+        <div className="flex justify-between text-xs border-b border-slate-100 pb-2">
+          <span className="text-slate-400">Owner Registered Name:</span>
+          <span className="font-semibold text-slate-700">{clientAccount?.ownerName}</span>
+        </div>
+        <div className="flex justify-between text-xs border-b border-slate-100 pb-2">
+          <span className="text-slate-400">License Expiry Date:</span>
+          <span className="font-mono text-slate-650">{clientAccount?.renewalDate ? new Date(clientAccount.renewalDate).toLocaleDateString() : 'N/A'}</span>
+        </div>
+        <div className="flex justify-between text-xs">
+          <span className="text-slate-400">Current Status Tag:</span>
+          <span className="font-mono font-black text-rose-600 uppercase tracking-wide">{clientAccount?.status}</span>
+        </div>
+      </div>
+
+      <div className="mt-8 border-t border-slate-200/60 pt-5 max-w-[420px]">
+        <p className="text-[11px] text-slate-400 leading-normal italic">
+          *If you are the platform administrator, you can reactivate this workspace by clicking <strong>"SaaS Owner Console"</strong> at the bottom of the left sidebar, entering passcode <strong>admin123</strong>, and toggling the status to Active.
+        </p>
+      </div>
+    </div>
+  );
+};
+
 
 // Shimmer Loader for Premium UX
 const LoadingSkeleton: React.FC = () => {

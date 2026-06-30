@@ -31,7 +31,8 @@ export const Sidebar: React.FC = () => {
     syncStatus, 
     triggerSync,
     subscription,
-    settings
+    settings,
+    clientAccount
   } = usePOS();
 
   // Role permissions:
@@ -39,10 +40,10 @@ export const Sidebar: React.FC = () => {
   // Manager: Access everything EXCEPT Staff and Admin
   // Cashier: Access Billing, Customers and Settings ONLY.
   const menuItems = [
-    { id: 'billing', label: 'Sales Billing', icon: ShoppingBag, roles: ['owner', 'manager', 'cashier'] },
-    { id: 'inventory', label: 'Inventory Management', icon: Package, roles: ['owner', 'manager'] },
-    { id: 'customers', label: 'Customer Ledger (Udhaar)', icon: Users, roles: ['owner', 'manager', 'cashier'] },
-    { id: 'reports', label: 'Reports & Analytics', icon: TrendingUp, roles: ['owner', 'manager'] },
+    { id: 'billing', label: 'Sales Billing', icon: ShoppingBag, roles: ['owner', 'manager', 'cashier'], feature: 'billing_sales' },
+    { id: 'inventory', label: 'Inventory Management', icon: Package, roles: ['owner', 'manager'], feature: 'basic_inventory' },
+    { id: 'customers', label: 'Customer Ledger (Udhaar)', icon: Users, roles: ['owner', 'manager', 'cashier'], feature: 'udhaar' },
+    { id: 'reports', label: 'Reports & Analytics', icon: TrendingUp, roles: ['owner', 'manager'], feature: 'full_reports' },
     { id: 'staff', label: 'Staff & Role Control', icon: UserCheck, roles: ['owner'] },
     { id: 'subscription', label: 'Subscription Hub', icon: CreditCard, roles: ['owner', 'manager'] },
     { id: 'settings', label: 'System Settings', icon: Settings, roles: ['owner', 'manager'] },
@@ -58,6 +59,15 @@ export const Sidebar: React.FC = () => {
   };
 
   const trialDays = getTrialDaysLeft();
+
+  const handleOpenSaaSAdmin = () => {
+    const code = prompt("Enter SaaS Owner Security Passcode to access Global Tenant & Gating Console:", "admin123");
+    if (code === "admin123") {
+      setActiveTab("saas-admin");
+    } else if (code !== null) {
+      alert("Unauthorized Access Attempt Blocked! Invalid Passcode.");
+    }
+  };
 
   return (
     <aside id="sidebar-container" className="w-72 bg-white text-slate-700 flex flex-col justify-between h-screen border-r border-slate-200/85 shrink-0">
@@ -98,7 +108,7 @@ export const Sidebar: React.FC = () => {
             <span className="text-xs font-bold text-slate-800 truncate">{settings.businessName}</span>
             <span className="text-[10px] text-warning-amber font-mono mt-1 flex items-center gap-1">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-warning-amber animate-pulse"></span>
-              SaaS Plan: {subscription.plan} {subscription.status === 'trial' && `(${trialDays}d Trial)`}
+              SaaS Plan: {clientAccount?.tier || subscription.plan} {clientAccount?.status === 'trial' && `(Trial)`}
             </span>
           </div>
         </div>
@@ -109,20 +119,11 @@ export const Sidebar: React.FC = () => {
             const Icon = item.icon;
             const hasAccess = item.roles.includes(currentUser.role);
             
-            if (!hasAccess) {
-              return (
-                <div 
-                  key={item.id} 
-                  className="flex items-center gap-3 px-3 py-2.5 text-xs text-slate-400 cursor-not-allowed select-none bg-slate-50 rounded-xl group relative border border-dashed border-slate-200"
-                  title={`Requires ${item.roles.join('/')} clearance`}
-                >
-                  <Icon className="h-4 w-4 opacity-40 text-slate-400" />
-                  <span className="opacity-60">{item.label}</span>
-                  <span className="absolute right-3 top-2 text-[9px] font-mono font-bold bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded uppercase">
-                    Locked
-                  </span>
-                </div>
-              );
+            // Feature gating check
+            const hasFeature = !item.feature || !clientAccount || !clientAccount.enabledFeatures || clientAccount.enabledFeatures.includes(item.feature);
+
+            if (!hasAccess || !hasFeature) {
+              return null; // Completely hide unauthorized or disabled features to show tailored dashboard version
             }
 
             const isActive = activeTab === item.id;
@@ -143,6 +144,28 @@ export const Sidebar: React.FC = () => {
             );
           })}
         </nav>
+
+        {/* Gated SaaS Owner Key Console Button */}
+        {currentUser.role === 'owner' && (
+          <div className="px-4 mt-1 pb-4">
+            <button
+              onClick={handleOpenSaaSAdmin}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 text-[11px] rounded-xl border font-bold font-mono transition-all uppercase cursor-pointer ${
+                activeTab === 'saas-admin'
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200'
+                  : 'bg-indigo-50/50 text-indigo-700 border-indigo-100/70 hover:bg-indigo-100/60 hover:text-indigo-800'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                </span>
+                <span>SaaS Owner Console</span>
+              </div>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Footer Area with Quick Staff Simulator Switcher */}

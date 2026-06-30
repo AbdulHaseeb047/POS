@@ -19,7 +19,16 @@ import {
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
-  const { settings, updateSettings } = usePOS();
+  const { 
+    settings, 
+    updateSettings, 
+    products, 
+    customers, 
+    ledger, 
+    sales, 
+    tenantId, 
+    changeTenant 
+  } = usePOS();
   
   // Local state for forms
   const [businessName, setBusinessName] = useState(settings.businessName);
@@ -37,6 +46,106 @@ export const SettingsView: React.FC = () => {
   const [lowStockAlertEnabled, setLowStockAlertEnabled] = useState(settings.lowStockAlertEnabled);
   
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [tenantInput, setTenantInput] = useState(tenantId);
+
+  React.useEffect(() => {
+    setTenantInput(tenantId);
+  }, [tenantId]);
+
+  const handleSwitchTenant = () => {
+    changeTenant(tenantInput);
+  };
+
+  const convertToCSV = (headers: string[], rows: any[][]) => {
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(r => r.map(val => {
+        const str = (val === null || val === undefined) ? "" : String(val);
+        // Escape quotes and wrap in quotes
+        const escaped = str.replace(/"/g, '""');
+        return `"${escaped}"`;
+      }).join(","))
+    ].join("\n");
+    return csvContent;
+  };
+
+  const triggerDownload = (filename: string, content: string) => {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const exportProducts = () => {
+    const headers = ["ID", "Name", "SKU", "Category", "Unit Type", "Cost Price", "Sale Price", "Stock Quantity", "Low Stock Threshold"];
+    const rows = products.map(p => [
+      p.id,
+      p.name,
+      p.sku,
+      p.category,
+      p.unitType,
+      p.costPrice,
+      p.salePrice,
+      p.stockQuantity,
+      p.lowStockThreshold
+    ]);
+    const csv = convertToCSV(headers, rows);
+    triggerDownload(`products-backup-${tenantId}.csv`, csv);
+  };
+
+  const exportCustomers = () => {
+    const headers = ["ID", "Name", "Phone", "Email", "Credit Limit", "Outstanding Balance"];
+    const rows = customers.map(c => [
+      c.id,
+      c.name,
+      c.phone,
+      c.email,
+      c.creditLimit,
+      c.outstandingBalance
+    ]);
+    const csv = convertToCSV(headers, rows);
+    triggerDownload(`customers-backup-${tenantId}.csv`, csv);
+  };
+
+  const exportSales = () => {
+    const headers = ["Invoice ID", "Date", "Customer ID", "Customer Name", "Subtotal", "Discount", "Tax", "Total Amount", "Amount Paid", "Outstanding Credit", "Payment Method", "Cashier Name"];
+    const rows = sales.map(s => [
+      s.id,
+      s.date,
+      s.customerId,
+      s.customerName,
+      s.subtotal,
+      s.discount,
+      s.tax,
+      s.total,
+      s.amountPaid,
+      s.creditAmount,
+      s.paymentMethod,
+      s.cashierName
+    ]);
+    const csv = convertToCSV(headers, rows);
+    triggerDownload(`sales-backup-${tenantId}.csv`, csv);
+  };
+
+  const exportLedger = () => {
+    const headers = ["Entry ID", "Customer ID", "Timestamp", "Type", "Transaction Amount", "Balance After Transaction", "Description"];
+    const rows = ledger.map(l => [
+      l.id,
+      l.customerId,
+      l.date,
+      l.type,
+      l.amount,
+      l.balanceAfter,
+      l.description
+    ]);
+    const csv = convertToCSV(headers, rows);
+    triggerDownload(`credit-ledger-backup-${tenantId}.csv`, csv);
+  };
 
   const handleSaveSettingsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -278,6 +387,89 @@ export const SettingsView: React.FC = () => {
               <span className="block text-[9px] text-slate-400 mt-1">
                 *Appears at the very bottom of printed customer slips.
               </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Multi-Tenant SaaS Workspace Switcher Card */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+          <h3 className="text-sm font-bold text-slate-850 flex items-center gap-1.5 border-b border-slate-100 pb-3">
+            <Building className="h-4.5 w-4.5 text-slate-500" />
+            <span>SaaS Tenant Workspace Selector</span>
+          </h3>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                Active Tenant Workspace ID
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="settings-tenant-id-input"
+                  type="text"
+                  value={tenantInput}
+                  onChange={(e) => setTenantInput(e.target.value)}
+                  placeholder="e.g. branch-gulshan"
+                  className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white font-mono"
+                />
+                <button
+                  id="settings-switch-tenant-btn"
+                  type="button"
+                  onClick={handleSwitchTenant}
+                  className="bg-slate-800 hover:bg-slate-900 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg transition-all cursor-pointer whitespace-nowrap"
+                >
+                  Switch
+                </button>
+              </div>
+              <p className="text-[9px] text-slate-400 mt-1.5 leading-relaxed">
+                *Input a unique ID to spin up or switch branches instantly. Database queries are strictly partitioned by this ID.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Backup and CSV Export Card */}
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4 lg:col-span-2">
+          <h3 className="text-sm font-bold text-slate-850 flex items-center gap-1.5 border-b border-slate-100 pb-3">
+            <Smartphone className="h-4.5 w-4.5 text-slate-500" />
+            <span>Backup & Export My Data (CSV)</span>
+          </h3>
+          <div className="space-y-3">
+            <p className="text-xs text-slate-500 leading-relaxed font-sans">
+              Download clean offline spreadsheets containing your products, active credit client ledger entries, customer list, and transaction logs.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                id="export-products-csv"
+                type="button"
+                onClick={exportProducts}
+                className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-[10px] font-bold px-3 py-2 rounded-lg transition-all border border-slate-200 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <span>Products ({products.length})</span>
+              </button>
+              <button
+                id="export-customers-csv"
+                type="button"
+                onClick={exportCustomers}
+                className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-[10px] font-bold px-3 py-2 rounded-lg transition-all border border-slate-200 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <span>Customers ({customers.length})</span>
+              </button>
+              <button
+                id="export-sales-csv"
+                type="button"
+                onClick={exportSales}
+                className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-[10px] font-bold px-3 py-2 rounded-lg transition-all border border-slate-200 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <span>Invoices ({sales.length})</span>
+              </button>
+              <button
+                id="export-ledger-csv"
+                type="button"
+                onClick={exportLedger}
+                className="bg-slate-50 hover:bg-slate-100 text-slate-700 text-[10px] font-bold px-3 py-2 rounded-lg transition-all border border-slate-200 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <span>Credit Ledger ({ledger.length})</span>
+              </button>
             </div>
           </div>
         </div>

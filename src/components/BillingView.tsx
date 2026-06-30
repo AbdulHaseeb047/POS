@@ -40,6 +40,8 @@ export const BillingView: React.FC = () => {
   const [cart, setCart] = useState<{ product: Product; quantity: number }[]>([]);
   const [discount, setDiscount] = useState<number>(0);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('walk-in');
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [customerTypeFilter, setCustomerTypeFilter] = useState<'all' | 'udhaar' | 'zero'>('all');
   
   // Payment Panel States
   const [checkoutModalOpen, setCheckoutModalOpen] = useState(false);
@@ -77,6 +79,24 @@ export const BillingView: React.FC = () => {
   const activeCustomer = useMemo(() => {
     return customers.find(c => c.id === selectedCustomerId) || null;
   }, [customers, selectedCustomerId]);
+
+  // Filtered customers for dropdown selection in Billing
+  const filteredBillingCustomers = useMemo(() => {
+    return customers.filter(c => {
+      // Filter by type: all, udhaar (outstandingBalance > 0), zero (outstandingBalance === 0)
+      if (customerTypeFilter === 'udhaar' && c.outstandingBalance <= 0) return false;
+      if (customerTypeFilter === 'zero' && c.outstandingBalance > 0) return false;
+
+      // Filter by search query (name or phone)
+      if (customerSearchQuery) {
+        const query = customerSearchQuery.toLowerCase();
+        const matchesName = c.name.toLowerCase().includes(query);
+        const matchesPhone = c.phone?.includes(query);
+        return matchesName || matchesPhone;
+      }
+      return true;
+    });
+  }, [customers, customerTypeFilter, customerSearchQuery]);
 
   // Cart Calculations
   const cartSubtotal = useMemo(() => {
@@ -396,33 +416,84 @@ export const BillingView: React.FC = () => {
         </div>
 
         {/* Customer Select Bar */}
-        <div className="p-4 border-b border-slate-100 bg-primary/5 flex items-center gap-2">
-          <div className="flex-1">
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono mb-1">
-              Customer Account
-            </label>
-            <select
-              id="customer-select"
-              value={selectedCustomerId}
-              onChange={(e) => setSelectedCustomerId(e.target.value)}
-              className="w-full text-xs font-medium bg-white text-slate-800 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary cursor-pointer"
-            >
-              <option value="walk-in">Walk-in Customer (Cash Sale)</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.phone}) — Bal: ₨ {c.outstandingBalance.toLocaleString()}
-                </option>
-              ))}
-            </select>
+        <div className="p-4 border-b border-slate-100 bg-primary/5 space-y-3">
+          {/* Quick Filter & Search controls */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono">
+                Find / Filter Customer
+              </span>
+              <div className="flex bg-white border border-slate-200 rounded-lg p-0.5 text-[10px] shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setCustomerTypeFilter('all')}
+                  className={`px-2 py-0.5 rounded font-bold transition-all ${
+                    customerTypeFilter === 'all' ? 'bg-primary text-white shadow-xs' : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCustomerTypeFilter('udhaar')}
+                  className={`px-2 py-0.5 rounded font-bold transition-all flex items-center gap-1 ${
+                    customerTypeFilter === 'udhaar' ? 'bg-rose-500 text-white shadow-xs' : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                  title="Filter by customers with pending balance"
+                >
+                  Udhaar 💸
+                </button>
+              </div>
+            </div>
+
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Type customer name or mobile..."
+                value={customerSearchQuery}
+                onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                className="w-full pl-3 pr-8 py-1.5 bg-white text-xs text-slate-800 rounded-lg border border-slate-200 outline-none focus:border-primary transition-all font-sans"
+              />
+              {customerSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setCustomerSearchQuery('')}
+                  className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           </div>
-          
-          <button
-            onClick={() => setCustomerModalOpen(true)}
-            className="mt-5 p-2 rounded-xl bg-primary text-white hover:bg-sage-dark transition-colors flex items-center justify-center shadow-xs cursor-pointer"
-            title="Register new customer"
-          >
-            <UserPlus className="h-4 w-4" />
-          </button>
+
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono mb-1">
+                Select Customer Account
+              </label>
+              <select
+                id="customer-select"
+                value={selectedCustomerId}
+                onChange={(e) => setSelectedCustomerId(e.target.value)}
+                className="w-full text-xs font-semibold bg-white text-slate-800 border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-primary cursor-pointer shadow-xs"
+              >
+                <option value="walk-in">Walk-in Customer (Cash Sale)</option>
+                {filteredBillingCustomers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.phone || 'No Phone'}) — Bal: ₨ {c.outstandingBalance.toLocaleString()}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <button
+              onClick={() => setCustomerModalOpen(true)}
+              className="mt-5 p-2 rounded-xl bg-primary text-white hover:bg-sage-dark transition-colors flex items-center justify-center shadow-xs cursor-pointer h-[34px] w-[34px]"
+              title="Register new customer"
+            >
+              <UserPlus className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Cart Item List */}

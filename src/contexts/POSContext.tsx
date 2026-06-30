@@ -14,7 +14,9 @@ import {
   Subscription,
   PaymentMethod,
   SaleItem,
-  PLAN_FEATURES
+  PLAN_FEATURES,
+  ClientAccount,
+  AuditLog
 } from '../types';
 
 interface POSContextType {
@@ -62,6 +64,21 @@ interface POSContextType {
   
   // Settings actions
   updateSettings: (updates: Partial<BusinessSettings>) => Promise<void>;
+
+  // Multi-Tenant workspace support
+  tenantId: string;
+  changeTenant: (id: string) => void;
+
+  // SaaS Admin actions
+  clientAccount: ClientAccount | null;
+  saasClients: ClientAccount[];
+  saasLogs: AuditLog[];
+  fetchSaaSClients: () => Promise<void>;
+  fetchSaaSLogs: () => Promise<void>;
+  createSaaSClient: (data: any) => Promise<void>;
+  updateSaaSClient: (id: string, updates: Partial<ClientAccount>) => Promise<void>;
+  suspendSaaSClient: (id: string) => Promise<void>;
+  deleteSaaSClient: (id: string) => Promise<void>;
 }
 
 const POSContext = createContext<POSContextType | undefined>(undefined);
@@ -73,6 +90,7 @@ const INITIAL_STAFF: StaffUser[] = [
 ];
 
 export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [tenantId, setTenantId] = useState<string>(() => localStorage.getItem('zappos_tenant_id') || 'tenant-default');
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [ledger, setLedger] = useState<CustomerLedgerEntry[]>([]);
@@ -104,13 +122,277 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     price: "₨ 5,000"
   });
 
-  // Fetch full data state from Backend on mount
+  const [clientAccount, setClientAccount] = useState<ClientAccount | null>(null);
+  const [saasClients, setSaaSClients] = useState<ClientAccount[]>([]);
+  const [saasLogs, setSaaSLogs] = useState<AuditLog[]>([]);
+
+  const getOfflineClientAccount = (tId: string): ClientAccount => {
+    const local = localStorage.getItem(`zappos_client_account_${tId}`);
+    if (local) return JSON.parse(local);
+    
+    const created: ClientAccount = {
+      id: tId,
+      businessName: "Karachi Super Mart",
+      ownerName: "Abdul Haseeb",
+      phone: "021-34567890",
+      email: `${tId}@zappos.pk`,
+      inviteLink: `https://zappos.pk/invite/${tId}`,
+      tier: 'Enterprise',
+      status: 'active',
+      signupDate: new Date().toISOString(),
+      startDate: new Date().toISOString(),
+      renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      enabledFeatures: ["billing_sales", "basic_inventory", "udhaar", "full_reports", "mobile_terminal", "offline_sync", "kot_module", "multi_sync", "fbr_integration"],
+      allowedUsers: 100
+    };
+    localStorage.setItem(`zappos_client_account_${tId}`, JSON.stringify(created));
+    return created;
+  };
+
+  const fetchSaaSClients = async () => {
+    try {
+      const res = await posFetch('/api/saas/clients');
+      if (res.ok) {
+        const data = await res.json();
+        setSaaSClients(data);
+        localStorage.setItem('zappos_saas_clients', JSON.stringify(data));
+      }
+    } catch (err) {
+      console.warn("Offline: loading local saas clients list");
+      const local = localStorage.getItem('zappos_saas_clients');
+      if (local) setSaaSClients(JSON.parse(local));
+    }
+  };
+
+  const fetchSaaSLogs = async () => {
+    try {
+      const res = await posFetch('/api/saas/logs');
+      if (res.ok) {
+        const data = await res.json();
+        setSaaSLogs(data);
+        localStorage.setItem('zappos_saas_logs', JSON.stringify(data));
+      }
+    } catch (err) {
+      console.warn("Offline: loading local saas audit logs");
+      const local = localStorage.getItem('zappos_saas_logs');
+      if (local) setSaaSLogs(JSON.parse(local));
+    }
+  };
+
+  const createSaaSClient = async (data: any) => {
+    await syncWithCloud(
+      async () => {
+        const res = await posFetch('/api/saas/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Failed to create client");
+        }
+        const created = await res.json();
+        setSaaSClients(prev => [created, ...prev]);
+        
+        const newLog: AuditLog = {
+          id: `audit-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          action: "CREATE_CLIENT",
+          performedBy: "SaaS Owner",
+          clientId: created.id,
+          details: `Manually provisioned workspace with tier: ${created.tier}`
+        };
+        setSaaSLogs(prev => [newLog, ...prev]);
+      },
+      () => {
+        const created: ClientAccount = {
+          ...data,
+          signupDate: new Date().toISOString(),
+          startDate: new Date().toISOString(),
+          renewalDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          enabledFeatures: data.enabledFeatures || ["billing_sales", "basic_inventory"],
+          allowedUsers: data.allowedUsers || 1
+        };
+        const updatedList = [created, ...saasClients];
+        setSaaSClients(updatedList);
+        localStorage.setItem('zappos_saas_clients', JSON.stringify(updatedList));
+
+        const newLog: AuditLog = {
+          id: `audit-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          action: "CREATE_CLIENT",
+          performedBy: "SaaS Owner",
+          clientId: created.id,
+          details: `Manually provisioned workspace (Offline) with tier: ${created.tier}`
+        };
+        const updatedLogs = [newLog, ...saasLogs];
+        setSaaSLogs(updatedLogs);
+        localStorage.setItem('zappos_saas_logs', JSON.stringify(updatedLogs));
+      }
+    );
+  };
+
+  const updateSaaSClient = async (id: string, updates: Partial<ClientAccount>) => {
+    await syncWithCloud(
+      async () => {
+        const res = await posFetch(`/api/saas/clients/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updates)
+        });
+        if (!res.ok) throw new Error("Failed to update features");
+        const updated = await res.json();
+        setSaaSClients(prev => prev.map(c => c.id === id ? updated : c));
+        
+        const newLog: AuditLog = {
+          id: `audit-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          action: "UPDATE_CLIENT",
+          performedBy: "SaaS Owner",
+          clientId: id,
+          details: `Updated workspace properties`
+        };
+        setSaaSLogs(prev => [newLog, ...prev]);
+
+        if (id === tenantId) {
+          setClientAccount(updated);
+          localStorage.setItem(`zappos_client_account_${tenantId}`, JSON.stringify(updated));
+        }
+      },
+      () => {
+        const updatedList = saasClients.map(c => {
+          if (c.id === id) {
+            const updated = { ...c, ...updates };
+            if (id === tenantId) {
+              setClientAccount(updated);
+              localStorage.setItem(`zappos_client_account_${tenantId}`, JSON.stringify(updated));
+            }
+            return updated;
+          }
+          return c;
+        });
+        setSaaSClients(updatedList);
+        localStorage.setItem('zappos_saas_clients', JSON.stringify(updatedList));
+
+        const newLog: AuditLog = {
+          id: `audit-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          action: "UPDATE_CLIENT",
+          performedBy: "SaaS Owner",
+          clientId: id,
+          details: "Updated workspace properties (Offline)"
+        };
+        const updatedLogs = [newLog, ...saasLogs];
+        setSaaSLogs(updatedLogs);
+        localStorage.setItem('zappos_saas_logs', JSON.stringify(updatedLogs));
+      }
+    );
+  };
+
+  const suspendSaaSClient = async (id: string) => {
+    await syncWithCloud(
+      async () => {
+        const res = await posFetch(`/api/saas/clients/${id}/suspend`, {
+          method: 'POST'
+        });
+        if (!res.ok) throw new Error("Failed to suspend");
+        setSaaSClients(prev => prev.map(c => c.id === id ? { ...c, status: 'suspended' } : c));
+
+        if (id === tenantId) {
+          setClientAccount(prev => prev ? { ...prev, status: 'suspended' } : null);
+        }
+
+        const newLog: AuditLog = {
+          id: `audit-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          action: "SUSPEND_CLIENT",
+          performedBy: "SaaS Owner",
+          clientId: id,
+          details: "Suspended client workspace access"
+        };
+        setSaaSLogs(prev => [newLog, ...prev]);
+      },
+      () => {
+        const updatedList = saasClients.map(c => c.id === id ? { ...c, status: 'suspended' as const } : c);
+        setSaaSClients(updatedList);
+        localStorage.setItem('zappos_saas_clients', JSON.stringify(updatedList));
+
+        if (id === tenantId) {
+          setClientAccount(prev => prev ? { ...prev, status: 'suspended' } : null);
+        }
+
+        const newLog: AuditLog = {
+          id: `audit-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          action: "SUSPEND_CLIENT",
+          performedBy: "SaaS Owner",
+          clientId: id,
+          details: "Suspended client workspace access (Offline)"
+        };
+        const updatedLogs = [newLog, ...saasLogs];
+        setSaaSLogs(updatedLogs);
+        localStorage.setItem('zappos_saas_logs', JSON.stringify(updatedLogs));
+      }
+    );
+  };
+
+  const deleteSaaSClient = async (id: string) => {
+    await syncWithCloud(
+      async () => {
+        const res = await posFetch(`/api/saas/clients/${id}`, {
+          method: 'DELETE'
+        });
+        if (!res.ok) throw new Error("Failed to delete client");
+        setSaaSClients(prev => prev.filter(c => c.id !== id));
+
+        const newLog: AuditLog = {
+          id: `audit-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          action: "DELETE_CLIENT",
+          performedBy: "SaaS Owner",
+          clientId: id,
+          details: "Deleted client workspace"
+        };
+        setSaaSLogs(prev => [newLog, ...prev]);
+      },
+      () => {
+        const updatedList = saasClients.filter(c => c.id !== id);
+        setSaaSClients(updatedList);
+        localStorage.setItem('zappos_saas_clients', JSON.stringify(updatedList));
+
+        const newLog: AuditLog = {
+          id: `audit-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          action: "DELETE_CLIENT",
+          performedBy: "SaaS Owner",
+          clientId: id,
+          details: "Deleted client workspace (Offline)"
+        };
+        const updatedLogs = [newLog, ...saasLogs];
+        setSaaSLogs(updatedLogs);
+        localStorage.setItem('zappos_saas_logs', JSON.stringify(updatedLogs));
+      }
+    );
+  };
+
+  // Custom fetch helper that automatically injects the tenant ID header
+  const posFetch = (url: string, options: RequestInit = {}) => {
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'x-tenant-id': tenantId,
+      },
+    });
+  };
+
+  // Fetch full data state from Backend on mount & when tenantId shifts
   useEffect(() => {
     const fetchPOSData = async () => {
       try {
         setIsLoading(true);
         setSyncStatus('syncing');
-        const res = await fetch('/api/pos-data');
+        const res = await posFetch('/api/pos-data');
         if (!res.ok) throw new Error("API response error");
         
         const data = await res.json();
@@ -122,6 +404,10 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setStaff(data.staff || INITIAL_STAFF);
         setSettings(data.settings || DEFAULT_SETTINGS());
         setSubscription(data.subscription || DEFAULT_SUBSCRIPTION());
+        setClientAccount(data.clientAccount || null);
+        if (data.clientAccount) {
+          localStorage.setItem(`zappos_client_account_${tenantId}`, JSON.stringify(data.clientAccount));
+        }
         
         // Handle Current User
         const localCurrentUser = localStorage.getItem('zappos_currentUser');
@@ -161,13 +447,16 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (localCurrentUser) setCurrentUser(JSON.parse(localCurrentUser));
         if (localSettings) setSettings(JSON.parse(localSettings));
         if (localSub) setSubscription(JSON.parse(localSub));
+
+        const localClientAccount = getOfflineClientAccount(tenantId);
+        setClientAccount(localClientAccount);
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchPOSData();
-  }, []);
+  }, [tenantId]);
 
   const DEFAULT_SETTINGS = () => ({
     businessName: "Karachi Super Mart",
@@ -206,7 +495,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const triggerSync = async () => {
     setSyncStatus('syncing');
     try {
-      const res = await fetch('/api/pos-data');
+      const res = await posFetch('/api/pos-data');
       if (!res.ok) throw new Error();
       const data = await res.json();
       setProducts(data.products || []);
@@ -226,7 +515,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addProduct = async (p: Omit<Product, 'id'>) => {
     await syncWithCloud(
       async () => {
-        const res = await fetch('/api/products', {
+        const res = await posFetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(p)
@@ -247,7 +536,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateProduct = async (id: string, updates: Partial<Product>) => {
     await syncWithCloud(
       async () => {
-        const res = await fetch(`/api/products/${id}`, {
+        const res = await posFetch(`/api/products/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updates)
@@ -267,7 +556,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const deleteProduct = async (id: string) => {
     await syncWithCloud(
       async () => {
-        const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
+        const res = await posFetch(`/api/products/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error();
         setProducts(prev => prev.filter(p => p.id !== id));
       },
@@ -282,7 +571,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const adjustStock = async (productId: string, amount: number, reason: string) => {
     await syncWithCloud(
       async () => {
-        const res = await fetch('/api/products/adjust-stock', {
+        const res = await posFetch('/api/products/adjust-stock', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ productId, amount, reason })
@@ -308,7 +597,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addCustomer = async (c: Omit<Customer, 'id' | 'outstandingBalance'>) => {
     await syncWithCloud(
       async () => {
-        const res = await fetch('/api/customers', {
+        const res = await posFetch('/api/customers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(c)
@@ -329,7 +618,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateCustomer = async (id: string, updates: Partial<Customer>) => {
     await syncWithCloud(
       async () => {
-        const res = await fetch(`/api/customers/${id}`, {
+        const res = await posFetch(`/api/customers/${id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updates)
@@ -349,7 +638,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const receivePayment = async (customerId: string, amount: number, reference: string) => {
     await syncWithCloud(
       async () => {
-        const res = await fetch('/api/customers/receive-payment', {
+        const res = await posFetch('/api/customers/receive-payment', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ customerId, amount, reference })
@@ -398,7 +687,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setSyncStatus('syncing');
     try {
-      const res = await fetch('/api/sales/checkout', {
+      const res = await posFetch('/api/sales/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -511,7 +800,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const addStaff = async (name: string, email: string, role: 'owner' | 'manager' | 'cashier') => {
     await syncWithCloud(
       async () => {
-        const res = await fetch('/api/staff', {
+        const res = await posFetch('/api/staff', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email, role })
@@ -545,7 +834,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const changePlan = async (plan: 'Starter' | 'Standard' | 'Pro' | 'Enterprise') => {
     await syncWithCloud(
       async () => {
-        const res = await fetch('/api/subscription/change-plan', {
+        const res = await posFetch('/api/subscription/change-plan', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ plan })
@@ -571,7 +860,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const resetTrial = async () => {
     await syncWithCloud(
       async () => {
-        const res = await fetch('/api/subscription/reset-trial', { method: 'POST' });
+        const res = await posFetch('/api/subscription/reset-trial', { method: 'POST' });
         if (!res.ok) throw new Error();
         const sub = await res.json();
         setSubscription(sub);
@@ -590,11 +879,18 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  // Multi-Tenant Business Switching
+  const changeTenant = (id: string) => {
+    const cleanId = id.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '') || 'tenant-default';
+    setTenantId(cleanId);
+    localStorage.setItem('zappos_tenant_id', cleanId);
+  };
+
   // Settings Actions
   const updateSettings = async (updates: Partial<BusinessSettings>) => {
     await syncWithCloud(
       async () => {
-        const res = await fetch('/api/settings', {
+        const res = await posFetch('/api/settings', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updates)
@@ -639,7 +935,18 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCurrentUser: handleSetCurrentUser,
         changePlan,
         resetTrial,
-        updateSettings
+        updateSettings,
+        tenantId,
+        changeTenant,
+        clientAccount,
+        saasClients,
+        saasLogs,
+        fetchSaaSClients,
+        fetchSaaSLogs,
+        createSaaSClient,
+        updateSaaSClient,
+        suspendSaaSClient,
+        deleteSaaSClient
       }}
     >
       {children}

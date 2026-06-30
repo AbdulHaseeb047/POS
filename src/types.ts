@@ -170,3 +170,29 @@ export const PLAN_FEATURES: Record<SubscriptionPlan, {
     ]
   }
 };
+
+export interface ClientAccount {
+  id: string;
+  businessName: string;
+  ownerName: string;
+  phone: string;
+  email: string;
+  inviteLink: string;
+  tier: 'Starter' | 'Growth' | 'Restaurant' | 'Enterprise';
+  status: 'trial' | 'active' | 'expired' | 'suspended';
+  signupDate: string;
+  startDate: string;
+  renewalDate: string;
+  enabledFeatures: string[];
+  allowedUsers: number;
+}
+
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  action: string;
+  performedBy: string;
+  clientId: string;
+  details: string;
+}
+
