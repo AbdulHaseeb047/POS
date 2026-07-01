@@ -21,7 +21,10 @@ export class ProductRepository {
         stockQuantity: Number(row.stock_quantity),
         lowStockThreshold: Number(row.low_stock_threshold),
         isQuickSelect: row.is_quick_select,
-        expiryDate: row.expiry_date
+        expiryDate: row.expiry_date,
+        supplier: row.supplier,
+        brand: row.brand,
+        discountPercentage: row.discount_percentage ? Number(row.discount_percentage) : undefined
       }));
     } else {
       const db = await readLocalDB();
@@ -50,7 +53,10 @@ export class ProductRepository {
         stockQuantity: Number(row.stock_quantity),
         lowStockThreshold: Number(row.low_stock_threshold),
         isQuickSelect: row.is_quick_select,
-        expiryDate: row.expiry_date
+        expiryDate: row.expiry_date,
+        supplier: row.supplier,
+        brand: row.brand,
+        discountPercentage: row.discount_percentage ? Number(row.discount_percentage) : undefined
       };
     } else {
       const db = await readLocalDB();
@@ -63,10 +69,10 @@ export class ProductRepository {
     if (pg.active) {
       await dbQuery(
         `INSERT INTO products 
-         (tenant_id, id, name, sku, barcode, category, unit_type, cost_price, sale_price, stock_quantity, low_stock_threshold, is_quick_select, expiry_date)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         (tenant_id, id, name, sku, barcode, category, unit_type, cost_price, sale_price, stock_quantity, low_stock_threshold, is_quick_select, expiry_date, supplier, brand, discount_percentage)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
          ON CONFLICT (tenant_id, id) DO UPDATE SET
-         name = $3, sku = $4, barcode = $5, category = $6, unit_type = $7, cost_price = $8, sale_price = $9, stock_quantity = $10, low_stock_threshold = $11, is_quick_select = $12, expiry_date = $13`,
+         name = $3, sku = $4, barcode = $5, category = $6, unit_type = $7, cost_price = $8, sale_price = $9, stock_quantity = $10, low_stock_threshold = $11, is_quick_select = $12, expiry_date = $13, supplier = $14, brand = $15, discount_percentage = $16`,
         [
           tenantId,
           product.id,
@@ -80,7 +86,10 @@ export class ProductRepository {
           product.stockQuantity,
           product.lowStockThreshold,
           product.isQuickSelect || false,
-          product.expiryDate
+          product.expiryDate,
+          product.supplier,
+          product.brand,
+          product.discountPercentage || 0
         ]
       );
       return product;

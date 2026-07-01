@@ -16,7 +16,9 @@ import {
   SaleItem,
   PLAN_FEATURES,
   ClientAccount,
-  AuditLog
+  AuditLog,
+  Supplier,
+  Brand
 } from '../types';
 
 interface POSContextType {
@@ -26,7 +28,9 @@ interface POSContextType {
   sales: Sale[];
   settings: BusinessSettings;
   staff: StaffUser[];
-  currentUser: StaffUser;
+  currentUser: StaffUser | null;
+  loginUser: (user: StaffUser) => void;
+  logoutUser: () => void;
   subscription: Subscription;
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -65,6 +69,16 @@ interface POSContextType {
   // Settings actions
   updateSettings: (updates: Partial<BusinessSettings>) => Promise<void>;
 
+  // Supplier & Brand actions
+  suppliers: Supplier[];
+  brands: Brand[];
+  addSupplier: (supplier: Omit<Supplier, 'id'>) => Promise<void>;
+  updateSupplier: (id: string, updates: Partial<Supplier>) => Promise<void>;
+  deleteSupplier: (id: string) => Promise<void>;
+  addBrand: (brand: Omit<Brand, 'id'>) => Promise<void>;
+  updateBrand: (id: string, updates: Partial<Brand>) => Promise<void>;
+  deleteBrand: (id: string) => Promise<void>;
+
   // Multi-Tenant workspace support
   tenantId: string;
   changeTenant: (id: string) => void;
@@ -96,7 +110,10 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [ledger, setLedger] = useState<CustomerLedgerEntry[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [staff, setStaff] = useState<StaffUser[]>([]);
-  const [currentUser, setCurrentUser] = useState<StaffUser>(INITIAL_STAFF[0]);
+  const [currentUser, setCurrentUser] = useState<StaffUser | null>(() => {
+    const saved = localStorage.getItem('zappos_currentUser');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [activeTab, setActiveTab] = useState<string>('billing');
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -125,6 +142,26 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [clientAccount, setClientAccount] = useState<ClientAccount | null>(null);
   const [saasClients, setSaaSClients] = useState<ClientAccount[]>([]);
   const [saasLogs, setSaaSLogs] = useState<AuditLog[]>([]);
+
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
+    const saved = localStorage.getItem('zappos_suppliers');
+    return saved ? JSON.parse(saved) : [
+      { id: 'sup-1', name: 'Shan Foods Karachi Ltd', contactPerson: 'Khurram Shahzad', phone: '0321-1234567', email: 'khurram@shanfoods.com', address: 'F-265, S.I.T.E., Karachi' },
+      { id: 'sup-2', name: 'Tapal Tea Distribution', contactPerson: 'Adeel Malik', phone: '0333-7654321', email: 'adeel@tapaltea.com.pk', address: 'Plot 40, Korangi Industrial Area, Karachi' },
+      { id: 'sup-3', name: 'Nestle Pakistan Dist', contactPerson: 'Sajid Mehmood', phone: '0300-9876543', email: 'sajid@nestle.com', address: 'Block C, North Nazimabad, Karachi' }
+    ];
+  });
+
+  const [brands, setBrands] = useState<Brand[]>(() => {
+    const saved = localStorage.getItem('zappos_brands');
+    return saved ? JSON.parse(saved) : [
+      { id: 'br-1', name: 'Shan' },
+      { id: 'br-2', name: 'Tapal' },
+      { id: 'br-3', name: 'Nestle' },
+      { id: 'br-4', name: 'National Foods' },
+      { id: 'br-5', name: 'Lipton' }
+    ];
+  });
 
   const getOfflineClientAccount = (tId: string): ClientAccount => {
     const local = localStorage.getItem(`zappos_client_account_${tId}`);
@@ -772,8 +809,13 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         total: item.product.salePrice * item.quantity
       }));
 
+      const invoiceId = `INV-${sales.length + 1006}`;
+      const fbrInvNum = `FBR-${sales.length + 101006}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const fbrVerId = `FBR-VER-${Math.floor(10000000 + Math.random() * 90000000)}`;
+      const fbrQr = `https://authorities.gov.pk/fbr-verify?invoice=${invoiceId}&fbr_id=${fbrInvNum}&code=${fbrVerId}`;
+
       createdSale = {
-        id: `INV-${sales.length + 1006}`,
+        id: invoiceId,
         date: new Date().toISOString(),
         customerId,
         customerName,
@@ -785,7 +827,11 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         amountPaid: paymentMethod === 'credit' ? 0 : (paymentMethod === 'split' ? amountPaid : total),
         creditAmount,
         paymentMethod,
-        cashierName: `${currentUser.name} (${currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)})`
+        cashierName: `${currentUser.name} (${currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)})`,
+        fbrInvoiceNumber: fbrInvNum,
+        fbrVerificationId: fbrVerId,
+        fbrStatus: "SUBMITTED_SUCCESSFULLY",
+        fbrQrCodeUrl: fbrQr
       };
 
       const updatedSales = [createdSale, ...sales];
@@ -825,9 +871,21 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
-  const handleSetCurrentUser = (user: StaffUser) => {
+  const handleSetCurrentUser = (user: StaffUser | null) => {
     setCurrentUser(user);
-    localStorage.setItem('zappos_currentUser', JSON.stringify(user));
+    if (user) {
+      localStorage.setItem('zappos_currentUser', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('zappos_currentUser');
+    }
+  };
+
+  const loginUser = (user: StaffUser) => {
+    handleSetCurrentUser(user);
+  };
+
+  const logoutUser = () => {
+    handleSetCurrentUser(null);
   };
 
   // Subscription Actions
@@ -907,6 +965,45 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
   };
 
+  // Supplier & Brand Actions
+  const addSupplier = async (data: Omit<Supplier, 'id'>) => {
+    const newSup: Supplier = { ...data, id: `sup-${Date.now()}` };
+    const updated = [...suppliers, newSup];
+    setSuppliers(updated);
+    localStorage.setItem('zappos_suppliers', JSON.stringify(updated));
+  };
+
+  const updateSupplier = async (id: string, updates: Partial<Supplier>) => {
+    const updated = suppliers.map(s => s.id === id ? { ...s, ...updates } : s);
+    setSuppliers(updated);
+    localStorage.setItem('zappos_suppliers', JSON.stringify(updated));
+  };
+
+  const deleteSupplier = async (id: string) => {
+    const updated = suppliers.filter(s => s.id !== id);
+    setSuppliers(updated);
+    localStorage.setItem('zappos_suppliers', JSON.stringify(updated));
+  };
+
+  const addBrand = async (data: Omit<Brand, 'id'>) => {
+    const newBrand: Brand = { ...data, id: `br-${Date.now()}` };
+    const updated = [...brands, newBrand];
+    setBrands(updated);
+    localStorage.setItem('zappos_brands', JSON.stringify(updated));
+  };
+
+  const updateBrand = async (id: string, updates: Partial<Brand>) => {
+    const updated = brands.map(b => b.id === id ? { ...b, ...updates } : b);
+    setBrands(updated);
+    localStorage.setItem('zappos_brands', JSON.stringify(updated));
+  };
+
+  const deleteBrand = async (id: string) => {
+    const updated = brands.filter(b => b.id !== id);
+    setBrands(updated);
+    localStorage.setItem('zappos_brands', JSON.stringify(updated));
+  };
+
   return (
     <POSContext.Provider
       value={{
@@ -917,6 +1014,8 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         settings,
         staff,
         currentUser,
+        loginUser,
+        logoutUser,
         subscription,
         activeTab,
         setActiveTab,
@@ -946,7 +1045,15 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createSaaSClient,
         updateSaaSClient,
         suspendSaaSClient,
-        deleteSaaSClient
+        deleteSaaSClient,
+        suppliers,
+        brands,
+        addSupplier,
+        updateSupplier,
+        deleteSupplier,
+        addBrand,
+        updateBrand,
+        deleteBrand
       }}
     >
       {children}

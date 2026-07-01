@@ -83,8 +83,15 @@ export class SaleService {
     }));
 
     const allSales = await SaleRepository.getAll(tenantId);
+    const invoiceId = `INV-${allSales.length + 1006}`;
+
+    // FBR Integration simulation backend logic
+    const fbrInvNum = `FBR-${allSales.length + 101006}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const fbrVerId = `FBR-VER-${Math.floor(10000000 + Math.random() * 90000000)}`;
+    const fbrQr = `https://authorities.gov.pk/fbr-verify?invoice=${invoiceId}&fbr_id=${fbrInvNum}&code=${fbrVerId}`;
+
     const newSale: Sale = {
-      id: `INV-${allSales.length + 1006}`,
+      id: invoiceId,
       date: new Date().toISOString(),
       customerId,
       customerName,
@@ -96,7 +103,11 @@ export class SaleService {
       amountPaid: paymentMethod === 'credit' ? 0 : (paymentMethod === 'split' ? amountPaid : total),
       creditAmount,
       paymentMethod,
-      cashierName
+      cashierName,
+      fbrInvoiceNumber: fbrInvNum,
+      fbrVerificationId: fbrVerId,
+      fbrStatus: "SUBMITTED_SUCCESSFULLY",
+      fbrQrCodeUrl: fbrQr
     };
 
     const savedSale = await SaleRepository.save(tenantId, newSale);

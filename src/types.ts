@@ -18,6 +18,9 @@ export interface Product {
   lowStockThreshold: number;
   expiryDate?: string;
   isQuickSelect: boolean;
+  supplier?: string;
+  brand?: string;
+  discountPercentage?: number; // Custom item-specific offer/discount %
 }
 
 export interface Customer {
@@ -66,6 +69,10 @@ export interface Sale {
   creditAmount: number;
   paymentMethod: PaymentMethod;
   cashierName: string;
+  fbrInvoiceNumber?: string;
+  fbrVerificationId?: string;
+  fbrStatus?: string;
+  fbrQrCodeUrl?: string;
 }
 
 export interface BusinessSettings {
@@ -194,5 +201,19 @@ export interface AuditLog {
   performedBy: string;
   clientId: string;
   details: string;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contactPerson?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+}
+
+export interface Brand {
+  id: string;
+  name: string;
 }
 

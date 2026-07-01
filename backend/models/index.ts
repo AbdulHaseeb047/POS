@@ -11,6 +11,9 @@ export interface Product {
   lowStockThreshold: number;
   isQuickSelect?: boolean;
   expiryDate?: string;
+  supplier?: string;
+  brand?: string;
+  discountPercentage?: number;
 }
 
 export interface Customer {
@@ -55,6 +58,10 @@ export interface Sale {
   creditAmount: number;
   paymentMethod: 'cash' | 'card' | 'credit' | 'split';
   cashierName?: string;
+  fbrInvoiceNumber?: string;
+  fbrVerificationId?: string;
+  fbrStatus?: string;
+  fbrQrCodeUrl?: string;
 }
 
 export interface StaffUser {

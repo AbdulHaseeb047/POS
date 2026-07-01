@@ -19,7 +19,8 @@ import {
   ArrowUpRight,
   ShieldAlert,
   Archive,
-  RefreshCw
+  RefreshCw,
+  Users
 } from 'lucide-react';
 
 export const InventoryView: React.FC = () => {
@@ -29,8 +30,19 @@ export const InventoryView: React.FC = () => {
     updateProduct,
     deleteProduct,
     adjustStock,
-    settings
+    settings,
+    suppliers,
+    brands,
+    addSupplier,
+    updateSupplier,
+    deleteSupplier,
+    addBrand,
+    updateBrand,
+    deleteBrand
   } = usePOS();
+
+  // Sub-tabs: 'products', 'suppliers', 'brands'
+  const [activeSubTab, setActiveSubTab] = useState<'products' | 'suppliers' | 'brands'>('products');
 
   // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -60,6 +72,21 @@ export const InventoryView: React.FC = () => {
   const [formQty, setFormQty] = useState('10');
   const [formThreshold, setFormThreshold] = useState('5');
   const [formExpiry, setFormExpiry] = useState('');
+  const [formSupplier, setFormSupplier] = useState('');
+  const [formBrand, setFormBrand] = useState('');
+  const [formDiscountPercentage, setFormDiscountPercentage] = useState('0');
+
+  // Supplier form states
+  const [supplierNameInput, setSupplierNameInput] = useState('');
+  const [supplierContactInput, setSupplierContactInput] = useState('');
+  const [supplierPhoneInput, setSupplierPhoneInput] = useState('');
+  const [supplierEmailInput, setSupplierEmailInput] = useState('');
+  const [supplierAddressInput, setSupplierAddressInput] = useState('');
+  const [editingSupplierId, setEditingSupplierId] = useState<string | null>(null);
+
+  // Brand form states
+  const [brandNameInput, setBrandNameInput] = useState('');
+  const [editingBrandId, setEditingBrandId] = useState<string | null>(null);
 
   // Categories list
   const categories = useMemo(() => {
@@ -122,6 +149,9 @@ export const InventoryView: React.FC = () => {
     setFormQty('50');
     setFormThreshold('10');
     setFormExpiry('');
+    setFormSupplier('');
+    setFormBrand('');
+    setFormDiscountPercentage('0');
     setProductModalOpen(true);
   };
 
@@ -137,6 +167,9 @@ export const InventoryView: React.FC = () => {
     setFormQty(p.stockQuantity.toString());
     setFormThreshold(p.lowStockThreshold.toString());
     setFormExpiry(p.expiryDate || '');
+    setFormSupplier(p.supplier || '');
+    setFormBrand(p.brand || '');
+    setFormDiscountPercentage((p.discountPercentage || 0).toString());
     setProductModalOpen(true);
   };
 
@@ -155,7 +188,10 @@ export const InventoryView: React.FC = () => {
       stockQuantity: parseFloat(formQty) || 0,
       lowStockThreshold: parseFloat(formThreshold) || 0,
       expiryDate: formExpiry || undefined,
-      isQuickSelect: editingProduct ? editingProduct.isQuickSelect : false
+      isQuickSelect: editingProduct ? editingProduct.isQuickSelect : false,
+      supplier: formSupplier || undefined,
+      brand: formBrand || undefined,
+      discountPercentage: parseFloat(formDiscountPercentage) || 0
     };
 
     if (editingProduct) {
@@ -198,6 +234,50 @@ export const InventoryView: React.FC = () => {
     }
   };
 
+  const handleSupplierSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supplierNameInput) return;
+
+    const supData = {
+      name: supplierNameInput,
+      contactPerson: supplierContactInput || undefined,
+      phone: supplierPhoneInput || undefined,
+      email: supplierEmailInput || undefined,
+      address: supplierAddressInput || undefined
+    };
+
+    if (editingSupplierId) {
+      await updateSupplier(editingSupplierId, supData);
+      setEditingSupplierId(null);
+    } else {
+      await addSupplier(supData);
+    }
+
+    setSupplierNameInput('');
+    setSupplierContactInput('');
+    setSupplierPhoneInput('');
+    setSupplierEmailInput('');
+    setSupplierAddressInput('');
+  };
+
+  const handleBrandSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!brandNameInput) return;
+
+    const brandData = {
+      name: brandNameInput
+    };
+
+    if (editingBrandId) {
+      await updateBrand(editingBrandId, brandData);
+      setEditingBrandId(null);
+    } else {
+      await addBrand(brandData);
+    }
+
+    setBrandNameInput('');
+  };
+
   return (
     <div className="flex-1 p-6 bg-slate-50 overflow-y-auto h-screen">
       {/* Header section */}
@@ -207,18 +287,56 @@ export const InventoryView: React.FC = () => {
           <p className="text-sm text-slate-500 font-sans">Track and audit warehouse items, restocks, and pricing logs</p>
         </div>
         
+        {activeSubTab === 'products' && (
+          <button
+            id="add-product-btn"
+            onClick={handleOpenAddProduct}
+            className="flex items-center gap-2 bg-primary hover:bg-sage-dark text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer"
+          >
+            <Plus className="h-4.5 w-4.5" />
+            <span>Add New Product</span>
+          </button>
+        )}
+      </div>
+
+      {/* Sub-Tabs Switcher */}
+      <div className="flex border-b border-slate-200 mb-6 font-sans">
         <button
-          id="add-product-btn"
-          onClick={handleOpenAddProduct}
-          className="flex items-center gap-2 bg-primary hover:bg-sage-dark text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer"
+          onClick={() => setActiveSubTab('products')}
+          className={`px-5 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+            activeSubTab === 'products'
+              ? 'border-primary text-primary font-extrabold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
         >
-          <Plus className="h-4.5 w-4.5" />
-          <span>Add New Product</span>
+          Products Catalog ({products.length})
+        </button>
+        <button
+          onClick={() => setActiveSubTab('suppliers')}
+          className={`px-5 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+            activeSubTab === 'suppliers'
+              ? 'border-primary text-primary font-extrabold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Suppliers Directory ({suppliers.length})
+        </button>
+        <button
+          onClick={() => setActiveSubTab('brands')}
+          className={`px-5 py-3 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+            activeSubTab === 'brands'
+              ? 'border-primary text-primary font-extrabold'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Brands Directory ({brands.length})
         </button>
       </div>
 
-      {/* Stats Summary Bento Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {activeSubTab === 'products' && (
+        <>
+        {/* Stats Summary Bento Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         
         {/* Stat 1: Total Catalog Items */}
         <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center gap-4">
@@ -500,6 +618,321 @@ export const InventoryView: React.FC = () => {
           </div>
         )}
       </div>
+      </>
+      )}
+
+      {/* activeSubTab === 'suppliers' Bento Section */}
+      {activeSubTab === 'suppliers' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left: Suppliers List */}
+          <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider font-mono mb-4">
+              Registered Suppliers ({suppliers.length})
+            </h3>
+            
+            {suppliers.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 font-sans">
+                <Users className="h-10 w-10 mx-auto text-slate-300 mb-2" />
+                <p className="text-sm">No suppliers registered yet.</p>
+                <p className="text-xs text-slate-400 mt-1">Use the form on the right to add your first supplier.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 uppercase font-bold font-mono border-b border-slate-200">
+                      <th className="p-3">Company Name</th>
+                      <th className="p-3">Contact</th>
+                      <th className="p-3">Phone</th>
+                      <th className="p-3">Products</th>
+                      <th className="p-3 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {suppliers.map(sup => {
+                      const prodCount = products.filter(p => p.supplier === sup.name).length;
+                      return (
+                        <tr key={sup.id} className="hover:bg-slate-50/50 transition-all">
+                          <td className="p-3">
+                            <span className="font-bold text-slate-800">{sup.name}</span>
+                            {sup.address && <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-xs">{sup.address}</p>}
+                          </td>
+                          <td className="p-3 text-slate-600">
+                            <span>{sup.contactPerson || '-'}</span>
+                            {sup.email && <p className="text-[10px] text-slate-400 mt-0.5">{sup.email}</p>}
+                          </td>
+                          <td className="p-3 font-mono text-slate-700">{sup.phone || '-'}</td>
+                          <td className="p-3">
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              prodCount > 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              {prodCount} items
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setEditingSupplierId(sup.id);
+                                  setSupplierNameInput(sup.name);
+                                  setSupplierContactInput(sup.contactPerson || '');
+                                  setSupplierPhoneInput(sup.phone || '');
+                                  setSupplierEmailInput(sup.email || '');
+                                  setSupplierAddressInput(sup.address || '');
+                                }}
+                                className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded cursor-pointer"
+                                title="Edit Supplier"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Are you sure you want to delete ${sup.name}?`)) {
+                                    deleteSupplier(sup.id);
+                                  }
+                                }}
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded cursor-pointer"
+                                title="Delete Supplier"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Add/Edit Supplier Form */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm h-fit">
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider font-mono mb-4">
+              {editingSupplierId ? '✍️ Edit Supplier' : '➕ Register New Supplier'}
+            </h3>
+            <form onSubmit={handleSupplierSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                  Supplier / Distributor Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Shan Foods Karachi Ltd"
+                  value={supplierNameInput}
+                  onChange={(e) => setSupplierNameInput(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                  Contact Person Name
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Khurram Shahzad"
+                  value={supplierContactInput}
+                  onChange={(e) => setSupplierContactInput(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                  Phone / Mobile Number *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 0321-1234567"
+                  value={supplierPhoneInput}
+                  onChange={(e) => setSupplierPhoneInput(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  placeholder="e.g. khurram@shanfoods.com"
+                  value={supplierEmailInput}
+                  onChange={(e) => setSupplierEmailInput(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                  Warehouse Address
+                </label>
+                <textarea
+                  placeholder="e.g. F-265, S.I.T.E., Karachi"
+                  value={supplierAddressInput}
+                  onChange={(e) => setSupplierAddressInput(e.target.value)}
+                  rows={3}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                {editingSupplierId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingSupplierId(null);
+                      setSupplierNameInput('');
+                      setSupplierContactInput('');
+                      setSupplierPhoneInput('');
+                      setSupplierEmailInput('');
+                      setSupplierAddressInput('');
+                    }}
+                    className="flex-1 py-2 rounded-lg border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-primary hover:bg-sage-dark text-white font-bold rounded-lg shadow-sm cursor-pointer"
+                >
+                  {editingSupplierId ? 'Save Changes' : 'Register Supplier'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* activeSubTab === 'brands' Bento Section */}
+      {activeSubTab === 'brands' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left: Brands List */}
+          <div className="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider font-mono mb-4">
+              Registered Brands ({brands.length})
+            </h3>
+            
+            {brands.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 font-sans">
+                <Archive className="h-10 w-10 mx-auto text-slate-300 mb-2" />
+                <p className="text-sm">No brands registered yet.</p>
+                <p className="text-xs text-slate-400 mt-1">Use the form on the right to add your first brand.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500 uppercase font-bold font-mono border-b border-slate-200">
+                      <th className="p-3">Logo Initial</th>
+                      <th className="p-3">Brand Name</th>
+                      <th className="p-3">Products Associated</th>
+                      <th className="p-3 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {brands.map(br => {
+                      const prodCount = products.filter(p => p.brand === br.name).length;
+                      return (
+                        <tr key={br.id} className="hover:bg-slate-50/50 transition-all">
+                          <td className="p-3">
+                            <div className="h-8 w-8 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center font-extrabold text-indigo-700 uppercase font-mono shadow-xs">
+                              {br.name.slice(0, 2)}
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <span className="font-bold text-slate-800">{br.name}</span>
+                          </td>
+                          <td className="p-3">
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              prodCount > 0 ? 'bg-indigo-50 text-indigo-700' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              {prodCount} items
+                            </span>
+                          </td>
+                          <td className="p-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setEditingBrandId(br.id);
+                                  setBrandNameInput(br.name);
+                                }}
+                                className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded cursor-pointer"
+                                title="Edit Brand"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Are you sure you want to delete ${br.name}?`)) {
+                                    deleteBrand(br.id);
+                                  }
+                                }}
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded cursor-pointer"
+                                title="Delete Brand"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Right: Add/Edit Brand Form */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm h-fit">
+            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider font-mono mb-4">
+              {editingBrandId ? '✍️ Edit Brand' : '➕ Register New Brand'}
+            </h3>
+            <form onSubmit={handleBrandSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                  Brand Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Tapal"
+                  value={brandNameInput}
+                  onChange={(e) => setBrandNameInput(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                {editingBrandId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingBrandId(null);
+                      setBrandNameInput('');
+                    }}
+                    className="flex-1 py-2 rounded-lg border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="flex-1 py-2 bg-primary hover:bg-sage-dark text-white font-bold rounded-lg shadow-sm cursor-pointer"
+                >
+                  {editingBrandId ? 'Save Changes' : 'Register Brand'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL 1: ADD/EDIT PRODUCT */}
       {productModalOpen && (
@@ -681,6 +1114,59 @@ export const InventoryView: React.FC = () => {
                     value={formExpiry}
                     onChange={(e) => setFormExpiry(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white font-mono cursor-pointer"
+                  />
+                </div>
+
+                {/* Brand */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                    Product Brand (Optional)
+                  </label>
+                  <select
+                    id="form-product-brand"
+                    value={formBrand}
+                    onChange={(e) => setFormBrand(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-850 outline-none focus:border-primary focus:bg-white cursor-pointer font-sans"
+                  >
+                    <option value="">-- No Brand Selected --</option>
+                    {brands.map(b => (
+                      <option key={b.id} value={b.name}>{b.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Supplier */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                    Product Supplier (Optional)
+                  </label>
+                  <select
+                    id="form-product-supplier"
+                    value={formSupplier}
+                    onChange={(e) => setFormSupplier(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-850 outline-none focus:border-primary focus:bg-white cursor-pointer font-sans"
+                  >
+                    <option value="">-- No Supplier Selected --</option>
+                    {suppliers.map(s => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Offer Discount Percentage */}
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                    Item-Specific Offer Discount Percentage (%)
+                  </label>
+                  <input
+                    id="form-product-discount"
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={formDiscountPercentage}
+                    onChange={(e) => setFormDiscountPercentage(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white font-mono"
+                    placeholder="e.g. 5, 10, 15"
                   />
                 </div>
 

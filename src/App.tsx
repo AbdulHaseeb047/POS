@@ -14,10 +14,15 @@ import { StaffView } from './components/StaffView';
 import { SubscriptionView } from './components/SubscriptionView';
 import { SettingsView } from './components/SettingsView';
 import { SaaSAdminView } from './components/SaaSAdminView';
+import { LoginSignupView } from './components/LoginSignupView';
 import { Lock } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { activeTab, currentUser, isLoading, clientAccount } = usePOS();
+
+  if (!currentUser) {
+    return <LoginSignupView />;
+  }
 
   // Role gating mapping
   const renderView = () => {

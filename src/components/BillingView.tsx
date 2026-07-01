@@ -103,15 +103,23 @@ export const BillingView: React.FC = () => {
     return cart.reduce((acc, item) => acc + (item.product.salePrice * item.quantity), 0);
   }, [cart]);
 
+  const itemOffersDiscountTotal = useMemo(() => {
+    return cart.reduce((acc, item) => {
+      const discountPercentage = item.product.discountPercentage || 0;
+      const itemDiscount = item.product.salePrice * (discountPercentage / 100);
+      return acc + (itemDiscount * item.quantity);
+    }, 0);
+  }, [cart]);
+
   const cartTax = useMemo(() => {
     if (!settings.taxEnabled) return 0;
-    const base = cartSubtotal - discount;
+    const base = cartSubtotal - itemOffersDiscountTotal - discount;
     return Math.max(0, Math.round(base * (settings.taxRate / 100)));
-  }, [cartSubtotal, discount, settings.taxEnabled, settings.taxRate]);
+  }, [cartSubtotal, itemOffersDiscountTotal, discount, settings.taxEnabled, settings.taxRate]);
 
   const cartTotal = useMemo(() => {
-    return Math.max(0, cartSubtotal - discount + cartTax);
-  }, [cartSubtotal, discount, cartTax]);
+    return Math.max(0, cartSubtotal - itemOffersDiscountTotal - discount + cartTax);
+  }, [cartSubtotal, itemOffersDiscountTotal, discount, cartTax]);
 
   // Split payment remainder
   const splitUdhaarRemainder = useMemo(() => {
@@ -236,7 +244,7 @@ export const BillingView: React.FC = () => {
     const sale = await checkout(
       selectedCustomerId,
       cart,
-      discount,
+      discount + itemOffersDiscountTotal,
       cashVal,
       paymentMethod
     );
@@ -553,9 +561,27 @@ export const BillingView: React.FC = () => {
                   </div>
 
                   {/* Pricing Total */}
-                  <p className="text-xs font-black text-slate-900 font-mono">
-                    ₨ {(item.product.salePrice * item.quantity).toLocaleString()}
-                  </p>
+                  <div className="text-right">
+                    {item.product.discountPercentage && item.product.discountPercentage > 0 ? (
+                      <div className="flex flex-col items-end">
+                        <span className="text-[9px] text-rose-600 font-extrabold bg-rose-50 px-1 py-0.5 rounded border border-rose-100 mb-0.5">
+                          {item.product.discountPercentage}% OFF OFFER
+                        </span>
+                        <div className="flex items-center gap-1.5 justify-end">
+                          <span className="text-[10px] text-slate-400 line-through font-mono">
+                            ₨ {(item.product.salePrice * item.quantity).toLocaleString()}
+                          </span>
+                          <span className="text-xs font-bold text-rose-600 font-mono">
+                            ₨ {((item.product.salePrice * (1 - item.product.discountPercentage / 100)) * item.quantity).toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs font-black text-slate-900 font-mono">
+                        ₨ {(item.product.salePrice * item.quantity).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
@@ -572,18 +598,26 @@ export const BillingView: React.FC = () => {
               <span className="font-mono text-slate-800">₨ {cartSubtotal.toLocaleString()}</span>
             </div>
 
-            {/* Discount Row */}
+            {/* Offers Discount */}
+            {itemOffersDiscountTotal > 0 && (
+              <div className="flex justify-between text-xs font-semibold text-rose-600 font-sans">
+                <span>Offers Discount</span>
+                <span className="font-mono">-₨ {itemOffersDiscountTotal.toLocaleString()}</span>
+              </div>
+            )}
+
+            {/* Manual Discount Row */}
             <div className="flex items-center justify-between text-xs font-medium text-slate-600 font-sans">
               <span className="flex items-center gap-1.5">
-                Discount (₨)
+                Extra Discount (₨)
               </span>
               <input
                 id="discount-input"
                 type="number"
                 min="0"
-                max={cartSubtotal}
+                max={cartSubtotal - itemOffersDiscountTotal}
                 value={discount || ''}
-                onChange={(e) => setDiscount(Math.min(cartSubtotal, Math.max(0, parseInt(e.target.value) || 0)))}
+                onChange={(e) => setDiscount(Math.min(cartSubtotal - itemOffersDiscountTotal, Math.max(0, parseInt(e.target.value) || 0)))}
                 placeholder="0"
                 className="w-20 text-right font-mono bg-white text-xs border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:border-primary"
               />
@@ -1082,6 +1116,44 @@ export const BillingView: React.FC = () => {
                     </>
                   )}
                 </div>
+
+                {/* FBR Pakistan Fiscal Integration */}
+                {completedSale.fbrInvoiceNumber && (
+                  <div className="mt-2 border border-slate-200 bg-slate-50 p-2.5 rounded text-center text-[9px] text-slate-700 font-sans space-y-1.5">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <div className="h-4.5 w-4.5 rounded bg-emerald-600 text-white flex items-center justify-center font-bold font-mono text-[7px]">FBR</div>
+                      <span className="font-bold text-slate-900 tracking-tight text-[10px] uppercase font-mono">FBR Fiscal POS Invoice</span>
+                    </div>
+                    
+                    <div className="space-y-0.5 font-mono text-[8px] text-left">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">FBR Inv Number:</span>
+                        <span className="font-bold text-slate-850">{completedSale.fbrInvoiceNumber}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">FBR Verif Code:</span>
+                        <span className="font-bold text-slate-850">{completedSale.fbrVerificationId}</span>
+                      </div>
+                      <div className="flex justify-between text-emerald-700 font-bold">
+                        <span>FBR Status:</span>
+                        <span>ONLINE RECORDED</span>
+                      </div>
+                    </div>
+
+                    {/* QR Code Container */}
+                    <div className="flex flex-col items-center pt-1.5 border-t border-slate-200/50">
+                      <div className="bg-white p-1 border border-slate-200 rounded">
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=70x70&data=${encodeURIComponent(completedSale.fbrQrCodeUrl || '')}`}
+                          alt="FBR Verification QR"
+                          className="h-16 w-16 animate-fade-in"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
+                      <p className="text-[7px] text-slate-400 mt-1 font-mono">Scan QR via Tax Asaan App for verification</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Footer details */}
                 <div className="text-center text-[10px] text-slate-500 mt-auto pt-4 space-y-1">

@@ -18,7 +18,8 @@ import {
   RefreshCw,
   UserCheck,
   AlertTriangle,
-  UserMinus
+  UserMinus,
+  LogOut
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -26,8 +27,7 @@ export const Sidebar: React.FC = () => {
     activeTab, 
     setActiveTab, 
     currentUser, 
-    staff, 
-    setCurrentUser, 
+    logoutUser, 
     syncStatus, 
     triggerSync,
     subscription,
@@ -71,7 +71,7 @@ export const Sidebar: React.FC = () => {
 
   return (
     <aside id="sidebar-container" className="w-72 bg-white text-slate-700 flex flex-col justify-between h-screen border-r border-slate-200/85 shrink-0">
-      <div className="flex flex-col overflow-y-auto">
+      <div className="flex flex-col flex-1 overflow-y-auto">
         {/* Brand Header */}
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -168,59 +168,33 @@ export const Sidebar: React.FC = () => {
         )}
       </div>
 
-      {/* Footer Area with Quick Staff Simulator Switcher */}
-      <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
-        {/* User Identity */}
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center font-bold text-primary font-sans shadow-sm">
-            {currentUser.name.charAt(0)}
+      {/* Bottom Profile / Account Indicator - Minimal & Google-like */}
+      <div className="p-4 border-t border-slate-150 bg-slate-50 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="h-9 w-9 rounded-full bg-primary text-white flex items-center justify-center font-bold font-sans shadow-sm shrink-0">
+            {currentUser?.name?.charAt(0) || 'U'}
           </div>
-          <div className="flex-1 min-w-0">
-            <h4 className="text-xs font-bold text-slate-850 truncate">{currentUser.name}</h4>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={`text-[9px] uppercase font-mono font-bold px-1.5 py-0.5 rounded ${
-                currentUser.role === 'owner' 
-                  ? 'bg-rose-50 text-rose-700 border border-rose-100' 
-                  : currentUser.role === 'manager'
-                  ? 'bg-cyan-50 text-cyan-700 border border-cyan-100'
-                  : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-              }`}>
-                {currentUser.role}
-              </span>
-            </div>
+          <div className="min-w-0">
+            <h4 className="text-xs font-bold text-slate-800 truncate leading-tight">{currentUser?.name}</h4>
+            <span className={`inline-block text-[9px] uppercase font-mono font-bold px-1.5 py-0.5 rounded mt-1 ${
+              currentUser?.role === 'owner' 
+                ? 'bg-rose-50 text-rose-700 border border-rose-100' 
+                : currentUser?.role === 'manager'
+                ? 'bg-cyan-50 text-cyan-700 border border-cyan-100'
+                : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+            }`}>
+              {currentUser?.role}
+            </span>
           </div>
         </div>
 
-        {/* Staff Switcher Box */}
-        <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider font-mono mb-1.5">
-            Role Sandbox Switcher
-          </label>
-          <select 
-            value={currentUser.id}
-            onChange={(e) => {
-              const selected = staff.find(s => s.id === e.target.value);
-              if (selected) {
-                setCurrentUser(selected);
-                // If switching roles restricts the active tab, fall back to billing
-                const menuItem = menuItems.find(m => m.id === activeTab);
-                if (menuItem && !menuItem.roles.includes(selected.role)) {
-                  setActiveTab('billing');
-                }
-              }
-            }}
-            className="w-full text-xs bg-slate-50 text-slate-700 border border-slate-200 px-2.5 py-1.5 rounded-lg focus:outline-none focus:border-primary cursor-pointer font-sans"
-          >
-            {staff.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.name} ({member.role})
-              </option>
-            ))}
-          </select>
-          <span className="block text-[9px] text-slate-400 mt-1.5 leading-normal italic font-sans">
-            *Test other roles to view dynamic permissions gating!
-          </span>
-        </div>
+        <button
+          onClick={() => logoutUser()}
+          title="Sign Out"
+          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50/50 rounded-xl transition-all cursor-pointer shrink-0"
+        >
+          <LogOut className="h-4.5 w-4.5" />
+        </button>
       </div>
     </aside>
   );

@@ -1,11 +1,10 @@
-import pg from "pg";
 import fs from "fs/promises";
 import path from "path";
 
 const PG_CONNECTION_STRING = process.env.DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/zappos_db";
 const LOCAL_DB_FILE = path.join(process.cwd(), "db.json");
 
-let pool: pg.Pool | null = null;
+let pool: any = null;
 let isPgActive = false;
 
 // Default System Gating & Configuration per tenant
@@ -37,7 +36,10 @@ export const DEFAULT_SUBSCRIPTION = {
 // Initialize connection attempts and apply schema migrations
 async function initializeDB() {
   try {
-    pool = new pg.Pool({
+    const pgModule = await import("pg");
+    const PoolClass = pgModule.default?.Pool || pgModule.Pool;
+    
+    pool = new PoolClass({
       connectionString: PG_CONNECTION_STRING,
       connectionTimeoutMillis: 3000 // Fails fast to ensure instant boot fallback
     });
