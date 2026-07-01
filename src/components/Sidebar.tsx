@@ -22,7 +22,8 @@ import {
   LogOut,
   Archive,
   Percent,
-  Truck
+  Truck,
+  Tags
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -35,7 +36,8 @@ export const Sidebar: React.FC = () => {
     triggerSync,
     subscription,
     settings,
-    clientAccount
+    clientAccount,
+    tenantId
   } = usePOS();
 
   // Role permissions:
@@ -47,6 +49,7 @@ export const Sidebar: React.FC = () => {
     { id: 'inventory', label: 'Inventory Management', icon: Package, roles: ['owner', 'manager'], feature: 'basic_inventory' },
     { id: 'suppliers', label: 'Suppliers Directory', icon: Truck, roles: ['owner', 'manager'] },
     { id: 'brands', label: 'Brand Registry', icon: Archive, roles: ['owner', 'manager'] },
+    { id: 'categories', label: 'Category Manager', icon: Tags, roles: ['owner', 'manager'] },
     { id: 'discounts', label: 'Item Discounts', icon: Percent, roles: ['owner', 'manager'] },
     { id: 'customers', label: 'Customer Ledger (Udhaar)', icon: Users, roles: ['owner', 'manager', 'cashier'], feature: 'udhaar' },
     { id: 'reports', label: 'Reports & Analytics', icon: TrendingUp, roles: ['owner', 'manager'], feature: 'full_reports' },
@@ -76,46 +79,57 @@ export const Sidebar: React.FC = () => {
   };
 
   return (
-    <aside id="sidebar-container" className="w-72 bg-white text-slate-700 flex flex-col justify-between h-screen border-r border-slate-200/85 shrink-0">
+    <aside id="sidebar-container" className="w-72 min-w-[288px] max-w-[288px] h-screen sticky left-0 top-0 bg-white text-slate-700 flex flex-col justify-between border-r border-slate-200/85 shrink-0 select-none z-40">
       <div className="flex flex-col flex-1 overflow-y-auto">
-        {/* Brand Header */}
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary text-white p-2.5 rounded-xl font-black tracking-tighter text-xl shadow-md flex items-center justify-center">
-              Z
+        {/* Brand & Store Status Block (Top Info) */}
+        <div className="p-5 border-b border-slate-100 bg-slate-50/50">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="bg-primary text-white h-9.5 w-9.5 rounded-xl font-black tracking-tighter text-lg shadow-sm flex items-center justify-center">
+                Z
+              </div>
+              <div>
+                <h1 className="text-sm font-black tracking-tight text-slate-900">
+                  ZapPOS
+                </h1>
+                <p className="text-[9px] text-slate-400 font-mono tracking-wider uppercase font-bold">Karachi Retail v1.4</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-base font-black tracking-tight text-slate-900 flex items-center gap-1.5">
-                ZapPOS
-              </h1>
-              <p className="text-[10px] text-slate-400 font-mono">Karachi Retail v1.4</p>
-            </div>
+            
+            {/* Sync trigger button */}
+            <button 
+              onClick={triggerSync}
+              title="Force Cloud Database Sync"
+              className="p-1.5 rounded-lg hover:bg-white text-slate-400 hover:text-primary transition-all flex items-center justify-center border border-slate-200/60 shadow-xxs bg-slate-50 cursor-pointer"
+            >
+              {syncStatus === 'syncing' ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />
+              ) : syncStatus === 'synced' ? (
+                <CloudLightning className="h-3.5 w-3.5 text-emerald-600" />
+              ) : (
+                <Database className="h-3.5 w-3.5 text-rose-500" />
+              )}
+            </button>
           </div>
-          {/* Real-time sync status indicator */}
-          <button 
-            onClick={triggerSync}
-            title="Force Cloud Database Sync"
-            className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-primary transition-colors flex items-center justify-center border border-slate-100"
-          >
-            {syncStatus === 'syncing' ? (
-              <RefreshCw className="h-4 w-4 animate-spin text-primary" />
-            ) : syncStatus === 'synced' ? (
-              <CloudLightning className="h-4 w-4 text-emerald-600" />
-            ) : (
-              <Database className="h-4 w-4 text-rose-500" />
-            )}
-          </button>
-        </div>
 
-        {/* Business Mini Badge */}
-        <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-100">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold font-mono">Business</span>
-            <span className="text-xs font-bold text-slate-800 truncate">{settings.businessName}</span>
-            <span className="text-[10px] text-warning-amber font-mono mt-1 flex items-center gap-1">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-warning-amber animate-pulse"></span>
-              SaaS Plan: {clientAccount?.tier || subscription.plan} {clientAccount?.status === 'trial' && `(Trial)`}
-            </span>
+          {/* Active Workspace / Store Card */}
+          <div className="bg-white p-3 rounded-xl border border-slate-150 shadow-xxs">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9px] text-slate-400 uppercase tracking-widest font-black font-mono">Registered Store</span>
+              <span className="text-xs font-bold text-slate-800 truncate leading-tight">{settings.businessName}</span>
+              <div className="flex justify-between items-center mt-1.5 pt-1.5 border-t border-slate-100">
+                <span className="text-[9px] text-slate-400 font-medium">SaaS Node:</span>
+                <span className="text-[9px] text-indigo-650 font-mono font-bold uppercase truncate max-w-[120px]" title={clientAccount?.id || tenantId}>
+                  {clientAccount?.id || tenantId}
+                </span>
+              </div>
+              <div className="flex justify-between items-center mt-1">
+                <span className="text-[9px] text-slate-400 font-medium">Status Tag:</span>
+                <span className="text-[9px] text-emerald-600 font-mono font-bold bg-emerald-50 px-1 rounded-sm border border-emerald-100">
+                  {clientAccount?.status || subscription.status}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 

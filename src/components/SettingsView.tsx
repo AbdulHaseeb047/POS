@@ -15,7 +15,8 @@ import {
   VolumeX, 
   CheckCircle,
   Smartphone,
-  Check
+  Check,
+  FileCheck
 } from 'lucide-react';
 
 export const SettingsView: React.FC = () => {
@@ -44,6 +45,11 @@ export const SettingsView: React.FC = () => {
   const [receiptFooter, setReceiptFooter] = useState(settings.receiptFooter);
   
   const [lowStockAlertEnabled, setLowStockAlertEnabled] = useState(settings.lowStockAlertEnabled);
+  
+  const [fbrEnabled, setFbrEnabled] = useState(settings.fbrEnabled ?? false);
+  const [fbrPosId, setFbrPosId] = useState(settings.fbrPosId ?? "101006");
+  const [fbrNtn, setFbrNtn] = useState(settings.fbrNtn ?? "42301-789456-1");
+  const [fbrApiUrl, setFbrApiUrl] = useState(settings.fbrApiUrl ?? "https://api.fbr.gov.pk/ims/v1/invoice");
   
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [tenantInput, setTenantInput] = useState(tenantId);
@@ -159,7 +165,11 @@ export const SettingsView: React.FC = () => {
       taxLabel,
       receiptHeader,
       receiptFooter,
-      lowStockAlertEnabled
+      lowStockAlertEnabled,
+      fbrEnabled,
+      fbrPosId,
+      fbrNtn,
+      fbrApiUrl
     });
 
     setSaveSuccess(true);
@@ -278,72 +288,154 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* COLUMN 2: ACTIVE TAX LAWS (GST/SRB) */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-          <h3 className="text-sm font-bold text-slate-850 flex items-center gap-1.5 border-b border-slate-100 pb-3">
-            <Percent className="h-4.5 w-4.5 text-slate-500" />
-            <span>Tax Rates Configuration</span>
-          </h3>
+        {/* COLUMN 2: ACTIVE TAX LAWS & FISCAL POS */}
+        <div className="space-y-6">
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <h3 className="text-sm font-bold text-slate-850 flex items-center gap-1.5 border-b border-slate-100 pb-3">
+              <Percent className="h-4.5 w-4.5 text-slate-500" />
+              <span>Tax Rates Configuration</span>
+            </h3>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
-              <div className="space-y-0.5">
-                <p className="text-xs font-bold text-slate-700">Apply Tax on Sales Billing</p>
-                <p className="text-[10px] text-slate-400 font-sans">Toggle to add tax rates automatically on invoice checkout</p>
-              </div>
-              <button
-                id="toggle-tax-enabled"
-                type="button"
-                onClick={() => setTaxEnabled(!taxEnabled)}
-                className={`w-12 h-6.5 rounded-full p-1 transition-colors outline-none cursor-pointer ${
-                  taxEnabled ? 'bg-emerald-500 flex justify-end' : 'bg-slate-200 flex justify-start'
-                }`}
-              >
-                <span className="w-4.5 h-4.5 bg-white rounded-full shadow-md"></span>
-              </button>
-            </div>
-
-            {taxEnabled && (
-              <div className="space-y-3 pt-2 animate-fade-in">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
-                    Tax Agency Label
-                  </label>
-                  <input
-                    id="settings-tax-label"
-                    type="text"
-                    required
-                    value={taxLabel}
-                    onChange={(e) => setTaxLabel(e.target.value)}
-                    placeholder="e.g. GST or SRB"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white"
-                  />
-                  <span className="block text-[9px] text-slate-400 mt-1">
-                    *SRB represents Sindh Revenue Board tax. GST represents federal General Sales Tax.
-                  </span>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold text-slate-700">Apply Tax on Sales Billing</p>
+                  <p className="text-[10px] text-slate-400 font-sans">Toggle to add tax rates automatically on invoice checkout</p>
                 </div>
+                <button
+                  id="toggle-tax-enabled"
+                  type="button"
+                  onClick={() => setTaxEnabled(!taxEnabled)}
+                  className={`w-12 h-6.5 rounded-full p-1 transition-colors outline-none cursor-pointer ${
+                    taxEnabled ? 'bg-emerald-500 flex justify-end' : 'bg-slate-200 flex justify-start'
+                  }`}
+                >
+                  <span className="w-4.5 h-4.5 bg-white rounded-full shadow-md"></span>
+                </button>
+              </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
-                    Active Tax Rate percentage (%)
-                  </label>
-                  <div className="relative">
+              {taxEnabled && (
+                <div className="space-y-3 pt-2 animate-fade-in">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                      Tax Agency Label
+                    </label>
                     <input
-                      id="settings-tax-rate"
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      max="30"
+                      id="settings-tax-label"
+                      type="text"
                       required
-                      value={taxRate}
-                      onChange={(e) => setTaxRate(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white font-mono"
+                      value={taxLabel}
+                      onChange={(e) => setTaxLabel(e.target.value)}
+                      placeholder="e.g. GST or SRB"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white"
                     />
-                    <span className="absolute right-3.5 top-2 text-xs text-slate-400 font-mono font-bold">%</span>
+                    <span className="block text-[9px] text-slate-400 mt-1">
+                      *SRB represents Sindh Revenue Board tax. GST represents federal General Sales Tax.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                      Active Tax Rate percentage (%)
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="settings-tax-rate"
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="30"
+                        required
+                        value={taxRate}
+                        onChange={(e) => setTaxRate(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white font-mono"
+                      />
+                      <span className="absolute right-3.5 top-2 text-xs text-slate-400 font-mono font-bold">%</span>
+                    </div>
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
+
+          {/* FBR Pakistan Fiscal Integration */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+            <h3 className="text-sm font-bold text-slate-850 flex items-center gap-1.5 border-b border-slate-100 pb-3">
+              <FileCheck className="h-4.5 w-4.5 text-primary" />
+              <span>FBR Pakistan Fiscal Integration</span>
+            </h3>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold text-slate-700">FBR Fiscal Integration</p>
+                  <p className="text-[10px] text-slate-400 font-sans">Submit sales real-time to FBR (Federal Board of Revenue)</p>
+                </div>
+                <button
+                  id="toggle-fbr-enabled"
+                  type="button"
+                  onClick={() => setFbrEnabled(!fbrEnabled)}
+                  className={`w-12 h-6.5 rounded-full p-1 transition-colors outline-none cursor-pointer ${
+                    fbrEnabled ? 'bg-primary flex justify-end' : 'bg-slate-200 flex justify-start'
+                  }`}
+                >
+                  <span className="w-4.5 h-4.5 bg-white rounded-full shadow-md"></span>
+                </button>
               </div>
-            )}
+
+              {fbrEnabled && (
+                <div className="space-y-3 pt-2 animate-fade-in">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                      FBR POS ID (Registration Number) *
+                    </label>
+                    <input
+                      id="settings-fbr-pos-id"
+                      type="text"
+                      required
+                      value={fbrPosId}
+                      onChange={(e) => setFbrPosId(e.target.value)}
+                      placeholder="e.g. 101006"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                      Retailer NTN / CNIC *
+                    </label>
+                    <input
+                      id="settings-fbr-ntn"
+                      type="text"
+                      required
+                      value={fbrNtn}
+                      onChange={(e) => setFbrNtn(e.target.value)}
+                      placeholder="e.g. 42301-789456-1"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-mono mb-1">
+                      FBR API Endpoint URL *
+                    </label>
+                    <input
+                      id="settings-fbr-api-url"
+                      type="text"
+                      required
+                      value={fbrApiUrl}
+                      onChange={(e) => setFbrApiUrl(e.target.value)}
+                      placeholder="e.g. https://api.fbr.gov.pk/ims/v1/invoice"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 outline-none focus:border-primary focus:bg-white font-mono"
+                    />
+                  </div>
+
+                  <div className="bg-indigo-50 border border-indigo-100 p-2.5 rounded-lg text-[9px] text-indigo-800 leading-normal font-sans">
+                    <strong>⚡ Compliance Engine:</strong> When active, finalizing invoices will auto-populate verifiable FBR fiscal serials, QR authentication, and register directly to tax registries.
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

@@ -18,7 +18,8 @@ import {
   ClientAccount,
   AuditLog,
   Supplier,
-  Brand
+  Brand,
+  Category
 } from '../types';
 
 interface POSContextType {
@@ -79,6 +80,12 @@ interface POSContextType {
   updateBrand: (id: string, updates: Partial<Brand>) => Promise<void>;
   deleteBrand: (id: string) => Promise<void>;
 
+  // Category actions
+  categories: Category[];
+  addCategory: (category: Omit<Category, 'id'>) => Promise<void>;
+  updateCategory: (id: string, updates: Partial<Category>) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
+
   // Multi-Tenant workspace support
   tenantId: string;
   changeTenant: (id: string) => void;
@@ -128,7 +135,11 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     taxLabel: "SRB/GST",
     receiptHeader: "WELCOME TO KARACHI SUPER MART\nYour One-Stop Shop for Quality Groceries",
     receiptFooter: "Thank you for shopping with us!\nSoftware Powered by ZapPOS (0300-ZAPPOS)",
-    lowStockAlertEnabled: true
+    lowStockAlertEnabled: true,
+    fbrEnabled: false,
+    fbrPosId: "101006",
+    fbrNtn: "42301-789456-1",
+    fbrApiUrl: "https://api.fbr.gov.pk/ims/v1/invoice"
   });
 
   const [subscription, setSubscription] = useState<Subscription>({
@@ -160,6 +171,17 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       { id: 'br-3', name: 'Nestle' },
       { id: 'br-4', name: 'National Foods' },
       { id: 'br-5', name: 'Lipton' }
+    ];
+  });
+
+  const [categories, setCategories] = useState<Category[]>(() => {
+    const saved = localStorage.getItem('zappos_categories');
+    return saved ? JSON.parse(saved) : [
+      { id: 'cat-1', name: 'Groceries', description: 'Daily staple items and foods' },
+      { id: 'cat-2', name: 'Beverages', description: 'Cold drinks, juices, tea, coffee' },
+      { id: 'cat-3', name: 'Snacks', description: 'Chips, biscuits, cookies, chocolates' },
+      { id: 'cat-4', name: 'Dairy', description: 'Milk, butter, cheese, yogurt' },
+      { id: 'cat-5', name: 'Pharmacy', description: 'Over the counter medicines and healthcare' }
     ];
   });
 
@@ -505,7 +527,11 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     taxLabel: "SRB/GST",
     receiptHeader: "WELCOME TO KARACHI SUPER MART\nYour One-Stop Shop for Quality Groceries",
     receiptFooter: "Thank you for shopping with us!\nSoftware Powered by ZapPOS (0300-ZAPPOS)",
-    lowStockAlertEnabled: true
+    lowStockAlertEnabled: true,
+    fbrEnabled: false,
+    fbrPosId: "101006",
+    fbrNtn: "42301-789456-1",
+    fbrApiUrl: "https://api.fbr.gov.pk/ims/v1/invoice"
   });
 
   const DEFAULT_SUBSCRIPTION = () => ({
@@ -810,9 +836,10 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }));
 
       const invoiceId = `INV-${sales.length + 1006}`;
-      const fbrInvNum = `FBR-${sales.length + 101006}-${Math.floor(1000 + Math.random() * 9000)}`;
-      const fbrVerId = `FBR-VER-${Math.floor(10000000 + Math.random() * 90000000)}`;
-      const fbrQr = `https://authorities.gov.pk/fbr-verify?invoice=${invoiceId}&fbr_id=${fbrInvNum}&code=${fbrVerId}`;
+      const hasFbr = settings.fbrEnabled ?? false;
+      const fbrInvNum = hasFbr ? `FBR-${settings.fbrPosId || '101006'}-${sales.length + 101006}-${Math.floor(1000 + Math.random() * 9000)}` : undefined;
+      const fbrVerId = hasFbr ? `FBR-VER-${Math.floor(10000000 + Math.random() * 90000000)}` : undefined;
+      const fbrQr = hasFbr ? `https://authorities.gov.pk/fbr-verify?invoice=${invoiceId}&fbr_id=${fbrInvNum}&code=${fbrVerId}` : undefined;
 
       createdSale = {
         id: invoiceId,
@@ -830,7 +857,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         cashierName: `${currentUser.name} (${currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1)})`,
         fbrInvoiceNumber: fbrInvNum,
         fbrVerificationId: fbrVerId,
-        fbrStatus: "SUBMITTED_SUCCESSFULLY",
+        fbrStatus: hasFbr ? "SUBMITTED_SUCCESSFULLY" : undefined,
         fbrQrCodeUrl: fbrQr
       };
 
@@ -1004,6 +1031,25 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.setItem('zappos_brands', JSON.stringify(updated));
   };
 
+  const addCategory = async (data: Omit<Category, 'id'>) => {
+    const newCat: Category = { ...data, id: `cat-${Date.now()}` };
+    const updated = [...categories, newCat];
+    setCategories(updated);
+    localStorage.setItem('zappos_categories', JSON.stringify(updated));
+  };
+
+  const updateCategory = async (id: string, updates: Partial<Category>) => {
+    const updated = categories.map(c => c.id === id ? { ...c, ...updates } : c);
+    setCategories(updated);
+    localStorage.setItem('zappos_categories', JSON.stringify(updated));
+  };
+
+  const deleteCategory = async (id: string) => {
+    const updated = categories.filter(c => c.id !== id);
+    setCategories(updated);
+    localStorage.setItem('zappos_categories', JSON.stringify(updated));
+  };
+
   return (
     <POSContext.Provider
       value={{
@@ -1053,7 +1099,11 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteSupplier,
         addBrand,
         updateBrand,
-        deleteBrand
+        deleteBrand,
+        categories,
+        addCategory,
+        updateCategory,
+        deleteCategory
       }}
     >
       {children}

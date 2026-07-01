@@ -38,7 +38,8 @@ export const InventoryView: React.FC = () => {
     deleteSupplier,
     addBrand,
     updateBrand,
-    deleteBrand
+    deleteBrand,
+    categories: dbCategories
   } = usePOS();
 
   // Sub-tabs: 'products', 'suppliers', 'brands'
@@ -90,9 +91,12 @@ export const InventoryView: React.FC = () => {
 
   // Categories list
   const categories = useMemo(() => {
-    const list = new Set(products.map(p => p.category));
+    const list = new Set([
+      ...dbCategories.map(c => c.name),
+      ...products.map(p => p.category)
+    ]);
     return ['All', ...Array.from(list)];
-  }, [products]);
+  }, [products, dbCategories]);
 
   // Inventory Stats calculations
   const totalItems = products.length;
@@ -142,7 +146,7 @@ export const InventoryView: React.FC = () => {
     setFormName('');
     setFormSku(`SKU-${Date.now().toString().slice(-6)}`);
     setFormBarcode(Math.floor(8964000000000 + Math.random() * 999999).toString());
-    setFormCategory('Groceries');
+    setFormCategory(dbCategories[0]?.name || 'Groceries');
     setFormUnit('piece');
     setFormCost('100');
     setFormSale('130');
@@ -937,7 +941,7 @@ export const InventoryView: React.FC = () => {
       {/* MODAL 1: ADD/EDIT PRODUCT */}
       {productModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-fade-in backdrop-blur-xs">
-          <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-slate-150 overflow-hidden">
+          <div className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] shadow-2xl border border-slate-150 overflow-hidden flex flex-col">
             <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h4 className="text-base font-bold text-slate-850">
                 {editingProduct ? `Edit Product: ${editingProduct.name}` : 'Create New Inventory Product'}
@@ -950,7 +954,7 @@ export const InventoryView: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleProductSubmit} className="p-5 space-y-4">
+            <form onSubmit={handleProductSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-2 gap-4">
                 
                 {/* Product Name */}
@@ -1009,15 +1013,12 @@ export const InventoryView: React.FC = () => {
                     onChange={(e) => setFormCategory(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-850 outline-none focus:border-primary focus:bg-white cursor-pointer font-sans"
                   >
-                    <option value="Groceries">Groceries</option>
-                    <option value="Spices">Spices</option>
-                    <option value="Cooking Essentials">Cooking Essentials</option>
-                    <option value="Sauces">Sauces</option>
-                    <option value="Bakery">Bakery</option>
-                    <option value="Snacks">Snacks</option>
-                    <option value="Dairy">Dairy</option>
-                    <option value="Household">Household</option>
-                    <option value="Beverages">Beverages</option>
+                    {dbCategories.map(cat => (
+                      <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    ))}
+                    {!dbCategories.some(cat => cat.name === formCategory) && formCategory && (
+                      <option value={formCategory}>{formCategory}</option>
+                    )}
                   </select>
                 </div>
 

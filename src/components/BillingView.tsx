@@ -31,7 +31,8 @@ export const BillingView: React.FC = () => {
     addCustomer,
     checkout,
     settings,
-    currentUser
+    currentUser,
+    categories: dbCategories
   } = usePOS();
 
   // Local State
@@ -59,9 +60,12 @@ export const BillingView: React.FC = () => {
 
   // Categories list
   const categories = useMemo(() => {
-    const list = new Set(products.map(p => p.category));
+    const list = new Set([
+      ...dbCategories.map(c => c.name),
+      ...products.map(p => p.category)
+    ]);
     return ['All', ...Array.from(list)];
-  }, [products]);
+  }, [products, dbCategories]);
 
   // Filtered products list
   const filteredProducts = useMemo(() => {
@@ -755,7 +759,7 @@ export const BillingView: React.FC = () => {
       {/* MODAL 2: INTERACTIVE PAYMENT PANEL */}
       {checkoutModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 animate-fade-in backdrop-blur-xs">
-          <div className="bg-white rounded-2xl w-full max-w-xl shadow-2xl border border-slate-150 overflow-hidden">
+          <div className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] shadow-2xl border border-slate-150 overflow-hidden flex flex-col">
             <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
               <h4 className="text-base font-bold text-slate-800">Payment Checkout</h4>
               <button 
@@ -766,7 +770,7 @@ export const BillingView: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
               {/* Bill Details Banner */}
               <div className="flex justify-between items-center bg-slate-gray text-white p-4 rounded-xl">
                 <div>

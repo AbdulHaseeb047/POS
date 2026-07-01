@@ -86,6 +86,10 @@ export interface BusinessSettings {
   receiptHeader: string;
   receiptFooter: string;
   lowStockAlertEnabled: boolean;
+  fbrEnabled?: boolean;
+  fbrPosId?: string;
+  fbrNtn?: string;
+  fbrApiUrl?: string;
 }
 
 export type UserRole = 'owner' | 'manager' | 'cashier';
@@ -215,5 +219,11 @@ export interface Supplier {
 export interface Brand {
   id: string;
   name: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
 }
 
