@@ -19,7 +19,10 @@ import {
   UserCheck,
   AlertTriangle,
   UserMinus,
-  LogOut
+  LogOut,
+  Archive,
+  Percent,
+  Truck
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -42,6 +45,9 @@ export const Sidebar: React.FC = () => {
   const menuItems = [
     { id: 'billing', label: 'Sales Billing', icon: ShoppingBag, roles: ['owner', 'manager', 'cashier'], feature: 'billing_sales' },
     { id: 'inventory', label: 'Inventory Management', icon: Package, roles: ['owner', 'manager'], feature: 'basic_inventory' },
+    { id: 'suppliers', label: 'Suppliers Directory', icon: Truck, roles: ['owner', 'manager'] },
+    { id: 'brands', label: 'Brand Registry', icon: Archive, roles: ['owner', 'manager'] },
+    { id: 'discounts', label: 'Item Discounts', icon: Percent, roles: ['owner', 'manager'] },
     { id: 'customers', label: 'Customer Ledger (Udhaar)', icon: Users, roles: ['owner', 'manager', 'cashier'], feature: 'udhaar' },
     { id: 'reports', label: 'Reports & Analytics', icon: TrendingUp, roles: ['owner', 'manager'], feature: 'full_reports' },
     { id: 'staff', label: 'Staff & Role Control', icon: UserCheck, roles: ['owner'] },

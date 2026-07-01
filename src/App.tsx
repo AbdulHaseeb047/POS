@@ -15,6 +15,9 @@ import { SubscriptionView } from './components/SubscriptionView';
 import { SettingsView } from './components/SettingsView';
 import { SaaSAdminView } from './components/SaaSAdminView';
 import { LoginSignupView } from './components/LoginSignupView';
+import { SuppliersView } from './components/SuppliersView';
+import { BrandsView } from './components/BrandsView';
+import { DiscountsView } from './components/DiscountsView';
 import { Lock } from 'lucide-react';
 
 const AppContent: React.FC = () => {
@@ -53,6 +56,24 @@ const AppContent: React.FC = () => {
           return <UnauthorizedFallback requiredRoles={['owner', 'manager']} />;
         }
         return <InventoryView />;
+      
+      case 'suppliers':
+        if (currentUser.role === 'cashier') {
+          return <UnauthorizedFallback requiredRoles={['owner', 'manager']} />;
+        }
+        return <SuppliersView />;
+      
+      case 'brands':
+        if (currentUser.role === 'cashier') {
+          return <UnauthorizedFallback requiredRoles={['owner', 'manager']} />;
+        }
+        return <BrandsView />;
+      
+      case 'discounts':
+        if (currentUser.role === 'cashier') {
+          return <UnauthorizedFallback requiredRoles={['owner', 'manager']} />;
+        }
+        return <DiscountsView />;
       
       case 'customers':
         return <CustomersView />;
